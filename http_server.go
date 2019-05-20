@@ -20,7 +20,7 @@ type TagValue struct {
 	TagCode  string  `json:"tagCode"`
 	Value    float64 `json:"value"`
 	DataTime int64   `json:"dataTime"`
-	Quality  int     `json:"quality"`
+	Quality  int8    `json:"quality"`
 }
 
 type Config struct {
@@ -118,6 +118,7 @@ func snapshotRedis(c *gin.Context) {
 func influxSub(c *gin.Context) {
 	body, _ := c.GetRawData()
 	processString(string(body))
+	body = nil
 	c.String(200, "ok")
 }
 
@@ -143,6 +144,7 @@ func processString(body string) {
 			liveDataMap[tv.TagCode] = tv
 		}
 	}
+	lines = nil
 }
 
 func setRedis(tv *TagValue) {
@@ -163,16 +165,27 @@ func buildTagValue(line string) *TagValue {
 	}
 	values := strings.Split(items[1], ",")
 	var value float64
+	var quality int8 = 0
 	if strings.HasPrefix(values[0], "value=") {
 		val := strings.Replace(values[0], "value=", "", 1)
 		value, _ = strconv.ParseFloat(val, 32)
+		if len(values) > 1 {
+			q := strings.Replace(values[1], "quality=", "", 1)
+			qv, _ := strconv.ParseInt(q, 10, 8)
+			quality = int8(qv)
+		}
 	} else {
 		val := strings.Replace(values[1], "value=", "", 1)
 		value, _ = strconv.ParseFloat(val, 32)
+		q := strings.Replace(values[0], "quality=", "", 1)
+		qv, _ := strconv.ParseInt(q, 10, 8)
+		quality = int8(qv)
+
 	}
 	return &TagValue{
 		TagCode:  code,
 		Value:    value,
 		DataTime: sec / 1e6,
+		Quality:  quality,
 	}
 }
