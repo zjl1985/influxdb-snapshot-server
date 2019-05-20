@@ -1,24 +1,26 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/common-nighthawk/go-figure"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/robfig/cron"
+	"io"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type TagValue struct {
-	Code    string  `json:"code"`
-	Value   float64 `json:"value"`
-	Date    int64   `json:"date"`
-	Quality int     `json:"quality"`
+	TagCode  string  `json:"tagCode"`
+	Value    float64 `json:"value"`
+	DataTime int64   `json:"dataTime"`
+	Quality  int     `json:"quality"`
 }
 
 type Config struct {
@@ -26,16 +28,17 @@ type Config struct {
 	Port         string
 	Mode         string
 	RedisAddress string
+	RedisPwd     string
 }
 
 var liveDataMap map[string]*TagValue
-var DelayTime int64
+var delayTime int64
 var config *Config
 var client *redis.Client
 var enableRedis bool
+var redisKey = "fastDBSnapshot"
 
 func main() {
-
 	if _, err := toml.DecodeFile("config.conf", &config); err != nil {
 		log.Fatal(err)
 	}
@@ -43,23 +46,28 @@ func main() {
 	if config.RedisAddress != "" {
 		client = redis.NewClient(&redis.Options{
 			Addr:     config.RedisAddress,
-			Password: "", // no password set
-			DB:       1,  // use default DB
+			Password: config.RedisPwd, // no password set
+			DB:       0,
 		})
 		c := cron.New()
-		_ = c.AddFunc("*/10 * * * * ?", func() {
-			fmt.Println("do job")
+		_ = c.AddFunc("*/30 * * * * ?", func() {
 			checkRedis()
 		})
 		c.Start()
 	}
-
+	f, _ := os.Create("gin.log")
+	gin.DefaultWriter = io.MultiWriter(f)
 	gin.SetMode(config.Mode)
 
 	liveDataMap = make(map[string]*TagValue)
-	DelayTime = int64(config.Delay * 1e9)
+	//data, err := client.HGetAll(redisKey).Result()
+	//if err == nil {
+	//	fmt.Println(data)
+	//}
+	delayTime = int64(config.Delay * 1e9)
 	r := gin.Default()
 	r.POST("/snapshot", snapshot)
+	r.POST("/snapshot/redis", snapshotRedis)
 	r.POST("/snapshot/write", influxSub)
 	myFigure := figure.NewFigure("FastDB", "", true)
 	myFigure.Print()
@@ -77,14 +85,33 @@ func checkRedis() {
 }
 
 func snapshot(c *gin.Context) {
-	arr := make([]string, 0)
-	_ = c.Bind(&arr)
+	codes := make([]string, 0)
+	_ = c.Bind(&codes)
 	returnData := make([]TagValue, 0)
-	for _, code := range arr {
+	for _, code := range codes {
 		if _, ok := liveDataMap[code]; ok {
 			returnData = append(returnData, *liveDataMap[code])
 		}
 	}
+	c.JSON(200, returnData)
+}
+
+func snapshotRedis(c *gin.Context) {
+	codes := make([]string, 0)
+	_ = c.Bind(&codes)
+	returnData := make([]TagValue, 0)
+	result, err := client.HMGet(redisKey, codes...).Result()
+	if err != nil {
+		c.JSON(500, err)
+		return
+	}
+	var tag TagValue
+	for _, item := range result {
+		var jsonBlob = []byte(item.(string))
+		_ = jsoniter.Unmarshal(jsonBlob, &tag)
+		returnData = append(returnData, tag)
+	}
+
 	c.JSON(200, returnData)
 }
 
@@ -96,7 +123,7 @@ func influxSub(c *gin.Context) {
 
 func processString(body string) {
 	lines := strings.Split(body, "\n")
-	delaySub := (time.Now().UnixNano() - DelayTime) / 1e6
+	delaySub := (time.Now().UnixNano() + delayTime) / 1e6
 	for _, line := range lines {
 		if !strings.HasPrefix(line, "tag_value,code=") {
 			continue
@@ -105,23 +132,24 @@ func processString(body string) {
 		if tv == nil {
 			continue
 		}
-		if _, ok := liveDataMap[tv.Code]; ok {
-			if tv.Date > liveDataMap[tv.Code].Date && tv.Date < delaySub {
+		if _, ok := liveDataMap[tv.TagCode]; ok {
+			if tv.DataTime > liveDataMap[tv.TagCode].DataTime && tv.DataTime < delaySub {
 				go setRedis(tv)
-				liveDataMap[tv.Code].Value = tv.Value
-				liveDataMap[tv.Code].Date = tv.Date
+				liveDataMap[tv.TagCode].Value = tv.Value
+				liveDataMap[tv.TagCode].DataTime = tv.DataTime
 			}
 		} else {
 			go setRedis(tv)
-			liveDataMap[tv.Code] = tv
+			liveDataMap[tv.TagCode] = tv
 		}
 	}
 }
 
 func setRedis(tv *TagValue) {
 	if enableRedis {
-		jsonBytes, _ := json.Marshal(tv)
-		client.Set(tv.Code, jsonBytes, 0)
+		jsonBytes, _ := jsoniter.Marshal(tv)
+		client.HSet(redisKey, tv.TagCode, jsonBytes)
+		//client.Set(tv.Code, jsonBytes, 0)
 	}
 }
 
@@ -130,7 +158,7 @@ func buildTagValue(line string) *TagValue {
 	items := strings.Split(line, " ")
 	code := items[0]
 	sec, _ := strconv.ParseInt(items[len(items)-1], 10, 64)
-	if sec < time.Now().UnixNano()-DelayTime {
+	if sec < time.Now().UnixNano()-delayTime {
 		return nil
 	}
 	values := strings.Split(items[1], ",")
@@ -143,8 +171,8 @@ func buildTagValue(line string) *TagValue {
 		value, _ = strconv.ParseFloat(val, 32)
 	}
 	return &TagValue{
-		Code:  code,
-		Value: value,
-		Date:  sec / 1e6,
+		TagCode:  code,
+		Value:    value,
+		DataTime: sec / 1e6,
 	}
 }
