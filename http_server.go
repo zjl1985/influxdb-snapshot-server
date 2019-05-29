@@ -17,10 +17,10 @@ import (
 )
 
 type TagValue struct {
-	TagCode  string  `json:"tagCode"`
-	Value    float32 `json:"value"`
-	DataTime int64   `json:"dataTime"`
 	Quality  int8    `json:"quality"`
+	DataTime int64   `json:"dataTime"`
+	Value    float32 `json:"value"`
+	TagCode  string  `json:"tagCode"`
 }
 
 type Config struct {
@@ -42,6 +42,7 @@ func main() {
 	if _, err := toml.DecodeFile("config.conf", &config); err != nil {
 		log.Fatal(err)
 	}
+
 	enableRedis = false
 	if config.RedisAddress != "" {
 		client = redis.NewClient(&redis.Options{
@@ -111,8 +112,9 @@ func snapshotRedis(c *gin.Context) {
 		_ = jsoniter.Unmarshal(jsonBlob, &tag)
 		returnData = append(returnData, tag)
 	}
-
+	result = nil
 	c.JSON(200, returnData)
+	returnData = nil
 }
 
 func influxSub(c *gin.Context) {
@@ -135,14 +137,15 @@ func processString(body string) {
 		}
 		if _, ok := liveDataMap[tv.TagCode]; ok {
 			if tv.DataTime > liveDataMap[tv.TagCode].DataTime && tv.DataTime < delaySub {
-				go setRedis(tv)
 				liveDataMap[tv.TagCode].Value = tv.Value
 				liveDataMap[tv.TagCode].DataTime = tv.DataTime
+				//setRedis(tv)
 			}
 		} else {
-			go setRedis(tv)
 			liveDataMap[tv.TagCode] = tv
+			//setRedis(tv)
 		}
+		tv = nil
 	}
 	lines = nil
 }
@@ -152,6 +155,8 @@ func setRedis(tv *TagValue) {
 		jsonBytes, _ := jsoniter.Marshal(tv)
 		client.HSet(redisKey, tv.TagCode, jsonBytes)
 		//client.Set(tv.Code, jsonBytes, 0)
+		jsonBytes = nil
+		tv = nil
 	}
 }
 
