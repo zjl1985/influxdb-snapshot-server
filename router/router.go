@@ -1,14 +1,14 @@
-package main
+package router
 
 import (
-	. "fastdb-server/apis"
+	. "fastdb-server/controller"
 	"fastdb-server/models"
 	"github.com/gin-gonic/gin"
 	"io"
 	"os"
 )
 
-func initRouter(config *models.Config) *gin.Engine {
+func InitRouter(config *models.Config) *gin.Engine {
 	f, _ := os.Create("gin.log")
 	gin.DefaultWriter = io.MultiWriter(f)
 	gin.SetMode(config.Mode)
