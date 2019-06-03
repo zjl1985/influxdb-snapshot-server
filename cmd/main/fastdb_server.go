@@ -1,6 +1,7 @@
 package main
 
 import (
+	server "fastdb-server"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/common-nighthawk/go-figure"
@@ -16,24 +17,9 @@ import (
 	"time"
 )
 
-type TagValue struct {
-	Quality  int8    `json:"quality"`
-	DataTime int64   `json:"dataTime"`
-	Value    float32 `json:"value"`
-	TagCode  string  `json:"tagCode"`
-}
-
-type Config struct {
-	Delay        int
-	Port         string
-	Mode         string
-	RedisAddress string
-	RedisPwd     string
-}
-
-var liveDataMap map[string]*TagValue
+var liveDataMap map[string]*server.TagValue
 var delayTime int64
-var config *Config
+var config *server.Config
 var client *redis.Client
 var enableRedis bool
 var redisKey = "fastDBSnapshot"
@@ -42,7 +28,6 @@ func main() {
 	if _, err := toml.DecodeFile("config.conf", &config); err != nil {
 		log.Fatal(err)
 	}
-
 	enableRedis = false
 	if config.RedisAddress != "" {
 		client = redis.NewClient(&redis.Options{
@@ -60,7 +45,7 @@ func main() {
 	gin.DefaultWriter = io.MultiWriter(f)
 	gin.SetMode(config.Mode)
 
-	liveDataMap = make(map[string]*TagValue)
+	liveDataMap = make(map[string]*server.TagValue)
 	//data, err := client.HGetAll(redisKey).Result()
 	//if err == nil {
 	//	fmt.Println(data)
@@ -85,28 +70,16 @@ func checkRedis() {
 	}
 }
 
-func snapshot(c *gin.Context) {
-	codes := make([]string, 0)
-	_ = c.Bind(&codes)
-	returnData := make([]TagValue, 0)
-	for _, code := range codes {
-		if _, ok := liveDataMap[code]; ok {
-			returnData = append(returnData, *liveDataMap[code])
-		}
-	}
-	c.JSON(200, returnData)
-}
-
 func snapshotRedis(c *gin.Context) {
 	codes := make([]string, 0)
 	_ = c.Bind(&codes)
-	returnData := make([]TagValue, 0)
+	returnData := make([]server.TagValue, 0)
 	result, err := client.HMGet(redisKey, codes...).Result()
 	if err != nil {
 		c.JSON(500, err)
 		return
 	}
-	var tag TagValue
+	var tag server.TagValue
 	for _, item := range result {
 		var jsonBlob = []byte(item.(string))
 		_ = jsoniter.Unmarshal(jsonBlob, &tag)
@@ -115,6 +88,28 @@ func snapshotRedis(c *gin.Context) {
 	result = nil
 	c.JSON(200, returnData)
 	returnData = nil
+}
+
+func setRedis(tv *server.TagValue) {
+	if enableRedis {
+		jsonBytes, _ := jsoniter.Marshal(tv)
+		client.HSet(redisKey, tv.TagCode, jsonBytes)
+		//client.Set(tv.Code, jsonBytes, 0)
+		jsonBytes = nil
+		tv = nil
+	}
+}
+
+func snapshot(c *gin.Context) {
+	codes := make([]string, 0)
+	_ = c.Bind(&codes)
+	returnData := make([]server.TagValue, 0)
+	for _, code := range codes {
+		if _, ok := liveDataMap[code]; ok {
+			returnData = append(returnData, *liveDataMap[code])
+		}
+	}
+	c.JSON(200, returnData)
 }
 
 func influxSub(c *gin.Context) {
@@ -150,17 +145,7 @@ func processString(body string) {
 	lines = nil
 }
 
-func setRedis(tv *TagValue) {
-	if enableRedis {
-		jsonBytes, _ := jsoniter.Marshal(tv)
-		client.HSet(redisKey, tv.TagCode, jsonBytes)
-		//client.Set(tv.Code, jsonBytes, 0)
-		jsonBytes = nil
-		tv = nil
-	}
-}
-
-func buildTagValue(line string) *TagValue {
+func buildTagValue(line string) *server.TagValue {
 	line = strings.Replace(line, "tag_value,code=", "", -1)
 	items := strings.Split(line, " ")
 	code := items[0]
@@ -190,7 +175,7 @@ func buildTagValue(line string) *TagValue {
 		quality = int8(qv)
 
 	}
-	return &TagValue{
+	return &server.TagValue{
 		TagCode:  code,
 		Value:    value,
 		DataTime: sec / 1e6,

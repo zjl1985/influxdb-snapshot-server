@@ -1,0 +1,1 @@
+go build -ldflags "-s -w" -o "fastDB.exe" .\cmd\main\fastdb_server.go
