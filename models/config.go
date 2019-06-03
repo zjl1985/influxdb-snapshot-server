@@ -6,4 +6,5 @@ type Config struct {
 	Mode         string
 	RedisAddress string
 	RedisPwd     string
+	DBPath       string
 }

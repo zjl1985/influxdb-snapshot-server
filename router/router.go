@@ -1,7 +1,7 @@
 package router
 
 import (
-	. "fastdb-server/controller"
+	"fastdb-server/controller"
 	"fastdb-server/models"
 	"github.com/gin-gonic/gin"
 	"io"
@@ -14,11 +14,15 @@ func InitRouter(config *models.Config) *gin.Engine {
 	gin.SetMode(config.Mode)
 	router := gin.Default()
 	initialize(config)
-	router.POST("/snapshot", Snapshot)
-	router.POST("/snapshot/write", InfluxSub)
+	router.POST("/snapshot", controller.Snapshot)
+	router.POST("/snapshot/write", controller.InfluxSub)
+
+	router.GET("/tags/:database", controller.SelectPage)
+	router.GET("/tags/:database/:code", controller.SelectPage)
+	router.GET("tag/:id", controller.SelectById)
 	return router
 }
 
 func initialize(config *models.Config) {
-	InitSnapshot(config.Delay)
+	controller.InitSnapshot(config.Delay)
 }

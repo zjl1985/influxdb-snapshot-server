@@ -1,4 +1,4 @@
-package apis
+package controller
 
 import (
 	"fastdb-server/models"
