@@ -3,7 +3,7 @@ package service
 import (
 	"fastdb-server/models"
 	"github.com/go-xorm/xorm"
-	"log"
+	log "github.com/sirupsen/logrus"
 )
 
 var Engine *xorm.Engine

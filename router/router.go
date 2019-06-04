@@ -19,7 +19,9 @@ func InitRouter(config *models.Config) *gin.Engine {
 
 	router.GET("/tags/:database", controller.SelectPage)
 	router.GET("/tags/:database/:code", controller.SelectPage)
-	router.GET("tag/:id", controller.SelectById)
+	router.GET("/tag/:id", controller.SelectById)
+	router.POST("/tag", controller.Create)
+	router.POST("/tags", controller.CreateList)
 	return router
 }
 
