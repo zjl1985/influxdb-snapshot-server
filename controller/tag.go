@@ -30,7 +30,7 @@ func SelectPage(c *gin.Context) {
 }
 
 func SelectById(c *gin.Context) {
-	id := c.Param("id")
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
 	tag := new(config.Tag)
 	has, err := service.Engine.Id(id).Get(tag)
 	if err != nil {
@@ -90,5 +90,51 @@ func CreateList(c *gin.Context) {
 	c.JSON(200, models.Result{
 		Success: true,
 		Result:  "success",
+	})
+}
+
+func Update(c *gin.Context) {
+	tag := new(config.Tag)
+	_ = c.Bind(tag)
+	_, err := service.Engine.Id(tag.Id).Cols("name", "desc").Update(tag)
+	if err != nil {
+		log.Error(err)
+		c.JSON(200, models.Result{
+			Success: false,
+			Result:  "更新失败",
+		})
+	} else {
+		c.JSON(200, models.Result{
+			Success: true,
+			Result:  "success",
+		})
+	}
+}
+
+func Delete(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
+	tag := new(config.Tag)
+	_, err := service.Engine.Id(id).Delete(tag)
+	if err != nil {
+		log.Error(err)
+		c.JSON(200, models.Result{
+			Success: false,
+			Result:  "删除失败",
+		})
+	} else {
+		c.JSON(200, models.Result{
+			Success: true,
+			Result:  "success",
+		})
+	}
+}
+
+func DeleteList(c *gin.Context) {
+	ids := make([]int, 0)
+	_ = c.Bind(&ids)
+
+	c.JSON(200, models.Result{
+		Success: true,
+		Result:  &ids,
 	})
 }

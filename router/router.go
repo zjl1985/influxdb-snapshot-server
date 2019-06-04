@@ -22,6 +22,9 @@ func InitRouter(config *models.Config) *gin.Engine {
 	router.GET("/tag/:id", controller.SelectById)
 	router.POST("/tag", controller.Create)
 	router.POST("/tags", controller.CreateList)
+	router.PUT("/tag", controller.Update)
+	router.DELETE("/tag/:id", controller.Delete)
+	router.DELETE("/tags", controller.DeleteList)
 	return router
 }
 
