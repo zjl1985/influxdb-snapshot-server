@@ -113,8 +113,9 @@ func Update(c *gin.Context) {
 
 func Delete(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
-	tag := new(config.Tag)
-	_, err := service.Engine.Id(id).Delete(tag)
+	//tag := new(config.Tag)
+	//todo 加入删除数据库测点
+	_, err := service.Engine.Id(id).Delete(&config.Tag{})
 	if err != nil {
 		log.Error(err)
 		c.JSON(200, models.Result{
@@ -132,9 +133,20 @@ func Delete(c *gin.Context) {
 func DeleteList(c *gin.Context) {
 	ids := make([]int, 0)
 	_ = c.Bind(&ids)
-
+	tags := make([]config.Tag, 0)
+	//tag := new(config.Tag)
+	session := service.Engine.In("id", ids)
+	err := session.Find(&tags)
+	//todo 加入删除数据库测点
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = service.Engine.Where(&config.Tag{}).In("id", ids).Delete(&config.Tag{})
+	if err != nil {
+		log.Error(err)
+	}
 	c.JSON(200, models.Result{
 		Success: true,
-		Result:  &ids,
+		Result:  &tags,
 	})
 }

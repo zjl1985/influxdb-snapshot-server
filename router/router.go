@@ -3,11 +3,13 @@ package router
 import (
 	"fastdb-server/controller"
 	"fastdb-server/models"
-	"github.com/gin-gonic/gin"
 	"io"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
+// InitRouter 注册服务
 func InitRouter(config *models.Config) *gin.Engine {
 	f, _ := os.Create("gin.log")
 	gin.DefaultWriter = io.MultiWriter(f)

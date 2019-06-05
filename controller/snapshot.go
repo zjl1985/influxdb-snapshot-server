@@ -82,11 +82,11 @@ func buildTagValue(line string) *models.TagValue {
 			quality = int8(qv)
 		}
 	} else {
-		val := strings.Replace(values[1], "value=", "", 1)
+		val := strings.Replace(strings.Replace(values[1], "value=", "", 1),"i","",1)
 		value64, _ := strconv.ParseFloat(val, 32)
 		value = float32(value64)
 
-		q := strings.Replace(values[0], "quality=", "", 1)
+		q := strings.Replace(strings.Replace(values[0], "quality=", "", 1),"i","",1)
 		qv, _ := strconv.ParseInt(q, 10, 8)
 		quality = int8(qv)
 
