@@ -35,7 +35,7 @@ func Select(c *gin.Context) {
 func Create(c *gin.Context) {
 	database := new(config.Database)
 	_ = c.Bind(database)
-	has, err := service.Engine.Where("code=?", database.Code).Get(&config.Database{})
+	has, err := service.Engine.Where("code=?", database.Code).Exist(&config.Database{})
 	if err != nil {
 		log.Error(err)
 	}

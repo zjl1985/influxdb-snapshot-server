@@ -17,7 +17,7 @@ func InitRouter(config *models.Config) *gin.Engine {
 	gin.SetMode(config.Mode)
 	router := gin.Default()
 	initialize(config)
-	api := router.Group("")
+	api := router.Group("/api")
 	api.POST("/snapshot", controller.Snapshot)
 	api.POST("/snapshot/write", controller.InfluxSub)
 
@@ -29,15 +29,15 @@ func InitRouter(config *models.Config) *gin.Engine {
 	api.PUT("/tag", controller.Update)
 	api.DELETE("/tag/:id", controller.Delete)
 
-	db := router.Group("/database")
+	db := api.Group("/database")
 	db.GET("", database.SelectAll)
 	db.GET("/:id", database.Select)
 	db.POST("", database.Create)
 	db.PUT("", database.Update)
 	db.DELETE("/:id", database.Delete)
 
-	router.GET("/online", influx.ConnectionState)
-	router.GET("/status", influx.Status)
+    api.GET("/isonline", influx.ConnectionState)
+    api.GET("/status", influx.StatusInfo)
 
 	static := router.Group("/fast")
 	static.Static("", "G:\\code\\influxdb-site\\app\\dist")
