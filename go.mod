@@ -17,6 +17,7 @@ require (
 	github.com/common-nighthawk/go-figure v0.0.0-20190529165535-67e0ed34491a
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-xorm/xorm v0.7.1
+	github.com/influxdata/influxdb1-client v0.0.0-20190402204710-8ff2fc3824fc
 	github.com/mattn/go-colorable v0.1.2
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/sirupsen/logrus v1.4.2

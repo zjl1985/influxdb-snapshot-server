@@ -7,10 +7,11 @@ import (
 )
 
 var Engine *xorm.Engine
+var MyConfig *models.Config
 
-func OpenDB(config *models.Config) {
-	Engine, _ = xorm.NewEngine("sqlite3", config.DBPath)
-	if config.Mode == "debug" {
+func OpenDB() {
+	Engine, _ = xorm.NewEngine("sqlite3", MyConfig.DBPath)
+	if MyConfig.Mode == "debug" {
 		Engine.ShowSQL(true)
 	}
 	err := Engine.Ping()

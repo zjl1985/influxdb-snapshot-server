@@ -144,9 +144,14 @@ func DeleteList(c *gin.Context) {
 	_, err = service.Engine.Where(&config.Tag{}).In("id", ids).Delete(&config.Tag{})
 	if err != nil {
 		log.Error(err)
+		c.JSON(200, models.Result{
+			Success: false,
+			Result:  "删除失败",
+		})
+	} else {
+		c.JSON(200, models.Result{
+			Success: true,
+			Result:  "success",
+		})
 	}
-	c.JSON(200, models.Result{
-		Success: true,
-		Result:  &tags,
-	})
 }
