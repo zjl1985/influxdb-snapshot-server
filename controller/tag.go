@@ -11,12 +11,23 @@ import (
     "strconv"
 )
 
-type Page struct {
-    List  []config.Tag `json:"list"`
-    Total int64        `json:"total"`
+func SelectPage(c *gin.Context) {
+    tags, total, err := TagPage(c)
+    if err != nil {
+        log.Error(err)
+        c.JSON(200, models.Page{
+            Total: 0,
+            List:  tags,
+        })
+    } else {
+        c.JSON(200, models.Page{
+            Total: total,
+            List:  tags,
+        })
+    }
 }
 
-func SelectPage(c *gin.Context) {
+func TagPage(c *gin.Context) ([]config.Tag, int64, error) {
     database := c.Param("database")
     code := c.Param("code")
     limit, _ := strconv.Atoi(c.Query("ps"))
@@ -24,25 +35,15 @@ func SelectPage(c *gin.Context) {
     offset := (pi - 1) * limit
     tags := make([]config.Tag, 0)
     sqlSession := service.Engine.Where("database=?", database)
-    defer sqlSession.Close()
     if code != "" {
         sqlSession.Where("code like '%'||?||'%'", code)
     }
     err := sqlSession.Limit(limit, offset).Find(&tags)
-    total, _ := sqlSession.Count(config.Tag{})
-
     if err != nil {
-        log.Error(err)
-        c.JSON(200, Page{
-            Total: 0,
-            List:  tags,
-        })
-    } else {
-        c.JSON(200, Page{
-            Total: total,
-            List:  tags,
-        })
+        return tags, 0, err
     }
+    total, _ := sqlSession.Count(config.Tag{})
+    return tags, total, nil
 }
 
 func SelectById(c *gin.Context) {

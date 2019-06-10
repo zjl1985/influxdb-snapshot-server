@@ -18,8 +18,8 @@ func InitRouter(config *models.Config) *gin.Engine {
     router := gin.Default()
     initialize(config)
     api := router.Group("/api")
-    api.POST("/snapshot", controller.Snapshot)
-    api.POST("/snapshot/write", controller.InfluxSub)
+    router.POST("/snapshot", controller.Snapshot)
+    router.POST("/snapshot/write", controller.InfluxSub)
 
     api.GET("/tags/:database", controller.SelectPage)
     api.GET("/tags/:database/:code", controller.SelectPage)
@@ -40,6 +40,10 @@ func InitRouter(config *models.Config) *gin.Engine {
 
     api.GET("/isonline", influx.ConnectionState)
     api.GET("/status", influx.StatusInfo)
+
+    api.GET("/live/:database", influx.GetLiveData)
+    api.GET("/live/:database/:code", influx.GetLiveData)
+    api.POST("/history/points/:database", influx.WriteHistoryData)
 
     static := router.Group("/fast")
     static.Static("", "G:\\code\\influxdb-site\\app\\dist")

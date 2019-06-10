@@ -1,5 +1,7 @@
 package models
 
+import "fastdb-server/models/config"
+
 type TagValue struct {
     Quality  int8    `json:"quality"`
     DataTime int64   `json:"dataTime"`
@@ -7,9 +9,7 @@ type TagValue struct {
     TagCode  string  `json:"tagCode"`
 }
 
-type Vtq struct {
-    Quality int8    `json:"quality"`
-    Time    int64   `json:"time"`
-    Value   float32 `json:"value"`
-    Code    string  `json:"code"`
+type Page struct {
+    List  []config.Tag `json:"list"`
+    Total int64        `json:"total"`
 }
