@@ -84,19 +84,26 @@ id) group by "database"`, baseStr)
         tagMap := getTagMap()
         log.Info(dataMap)
         for index := range databases {
-            if _, ok := dataMap[databases[index].Code]; ok {
-                databases[index].Disk = dataMap[databases[index].Code]
+            if v, ok := dataMap[databases[index].Code]; ok {
+                databases[index].Disk = v
             }
             totalDisk += databases[index].Disk
 
-            if _, ok := tagMap[databases[index].Code]; ok {
-                databases[index].TagNum = tagMap[databases[index].Code]
+            if v, ok := tagMap[databases[index].Code]; ok {
+                databases[index].TagNum = v
             }
             totalNum += databases[index].TagNum
         }
         log.Info(databases)
         status.TotalDisk = totalDisk
         status.TotalNum = totalNum
+    } else {
+        if err != nil {
+            log.Error(err)
+        }
+        if response.Error() != nil {
+            log.Error(response.Error())
+        }
     }
 
     context.JSON(200, infoStatus{
@@ -127,7 +134,7 @@ func getTagMap() map[string]int {
 
 func getDataBaseMap(result client.Result) map[string]float64 {
     dataMap := make(map[string]float64)
-    databases := groupBy(result)
+    databases := GroupBy(result)
     for _, database := range databases {
         disk, _ := database["sum_last"].(json.Number).Float64()
         dataMap[database["database"].(string)] = disk / (1024 * 1024)
@@ -151,7 +158,7 @@ func flat(result client.Result) map[string]interface{} {
     return m
 }
 
-func groupBy(result client.Result) []map[string]interface{} {
+func GroupBy(result client.Result) []map[string]interface{} {
     rows := make([]map[string]interface{}, 0)
     for _, ser := range result.Series {
         m := make(map[string]interface{})
@@ -166,16 +173,4 @@ func groupBy(result client.Result) []map[string]interface{} {
         rows = append(rows, m)
     }
     return rows
-}
-
-//func goodLook(result []client.Result) []map[string]interface{} {
-//    r := make([]map[string]interface{}, 0)
-//    for _, item := range result {
-//        r = append(r, groupBy(item))
-//    }
-//    return r
-//}
-
-func diagnostics() {
-
 }

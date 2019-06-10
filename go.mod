@@ -21,4 +21,5 @@ require (
 	github.com/mattn/go-colorable v0.1.2
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/sirupsen/logrus v1.4.2
+	github.com/thoas/go-funk v0.4.0
 )
