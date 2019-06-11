@@ -37,11 +37,18 @@ func TagPage(c *gin.Context) ([]config.Tag, int64, error) {
     tags := make([]config.Tag, 0)
     sqlSession := service.Engine.Where("database=?", database)
     if code != "" {
-        sqlSession.Where("code like '%'||?||'%'", code)
+        sqlSession = service.Engine.Where("database=?",
+            database).And("code like '%'||?||'%'", code)
     }
     err := sqlSession.Limit(limit, offset).Find(&tags)
     if err != nil {
         return tags, 0, err
+    }
+
+    sqlSession = service.Engine.Where("database=?", database)
+    if code != "" {
+        sqlSession = service.Engine.Where("database=?",
+            database).And("code like '%'||?||'%'", code)
     }
     total, _ := sqlSession.Count(config.Tag{})
     return tags, total, nil
@@ -210,7 +217,7 @@ func Synchronize(c *gin.Context) {
     }
     c.JSON(http.StatusOK, models.Result{
         Success: true,
-        Result:  "success",
+        Result:  len(insertTags),
     })
 }
 
