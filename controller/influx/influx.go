@@ -8,6 +8,7 @@ import (
     "github.com/gin-gonic/gin"
     client "github.com/influxdata/influxdb1-client/v2"
     log "github.com/sirupsen/logrus"
+    "net/http"
     "strings"
 )
 
@@ -36,11 +37,11 @@ func ConnectionState(context *gin.Context) {
     defer c.Close()
     _, _, err = c.Ping(500)
     if err != nil {
-        context.JSON(200, online{
+        context.JSON(http.StatusOK, online{
             Online: false,
         })
     } else {
-        context.JSON(200, online{
+        context.JSON(http.StatusOK, online{
             Online: true,
         })
     }
@@ -82,7 +83,6 @@ id) group by "database"`, baseStr)
         totalNum := 0
         dataMap := getDataBaseMap(response.Results[0])
         tagMap := getTagMap()
-        log.Info(dataMap)
         for index := range databases {
             if v, ok := dataMap[databases[index].Code]; ok {
                 databases[index].Disk = v
@@ -94,7 +94,6 @@ id) group by "database"`, baseStr)
             }
             totalNum += databases[index].TagNum
         }
-        log.Info(databases)
         status.TotalDisk = totalDisk
         status.TotalNum = totalNum
     } else {
@@ -106,7 +105,7 @@ id) group by "database"`, baseStr)
         }
     }
 
-    context.JSON(200, infoStatus{
+    context.JSON(http.StatusOK, infoStatus{
         Info:   m,
         Status: *status,
     })
@@ -161,16 +160,20 @@ func flat(result client.Result) map[string]interface{} {
 func GroupBy(result client.Result) []map[string]interface{} {
     rows := make([]map[string]interface{}, 0)
     for _, ser := range result.Series {
-        m := make(map[string]interface{})
-        if ser.Tags != nil {
-            for k, v := range ser.Tags {
-                m[k] = v
+
+
+        for i := range ser.Values {
+            m := make(map[string]interface{})
+            if ser.Tags != nil {
+                for k, v := range ser.Tags {
+                    m[k] = v
+                }
             }
+            for index := range ser.Columns {
+                m[ser.Columns[index]] = ser.Values[i][index]
+            }
+            rows = append(rows, m)
         }
-        for index := range ser.Columns {
-            m[ser.Columns[index]] = ser.Values[0][index]
-        }
-        rows = append(rows, m)
     }
     return rows
 }

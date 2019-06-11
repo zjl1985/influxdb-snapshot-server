@@ -28,7 +28,7 @@ func InitRouter(config *models.Config) *gin.Engine {
     api.PATCH("/tags-sync/:database", controller.Synchronize)
     api.POST("/tag", controller.Create)
     api.PUT("/tag", controller.Update)
-    api.DELETE("/tag/:id", controller.Delete)
+    api.DELETE("/tag/:database/:id", controller.Delete)
     api.DELETE("/tags/:database", controller.DeleteList)
 
     db := api.Group("/database")
@@ -43,10 +43,14 @@ func InitRouter(config *models.Config) *gin.Engine {
 
     api.GET("/live/:database", influx.GetLiveData)
     api.GET("/live/:database/:code", influx.GetLiveData)
-    api.POST("/history/points/:database", influx.WriteHistoryData)
+    api.GET("/history/data/:database", influx.GeHistoryData)
+    api.GET("/query/:database", influx.UserDefineQuery)
+
+    api.POST("/live/:database", influx.WriteLiveData)
+    api.DELETE("/history/:database", influx.DeleteData)
 
     static := router.Group("/fast")
-    static.Static("", "G:\\code\\influxdb-site\\app\\dist")
+    static.Static("", config.WebPath)
     return router
 }
 

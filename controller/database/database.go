@@ -6,7 +6,8 @@ import (
 	"fastdb-server/service"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"strconv"
+    "net/http"
+    "strconv"
 )
 
 func SelectAll(c *gin.Context) {
@@ -15,7 +16,7 @@ func SelectAll(c *gin.Context) {
 	if err != nil {
 		log.Error(err)
 	}
-	c.JSON(200, &databases)
+	c.JSON(http.StatusOK, &databases)
 }
 
 func Select(c *gin.Context) {
@@ -26,9 +27,9 @@ func Select(c *gin.Context) {
 		log.Error(err)
 	}
 	if has {
-		c.JSON(200, database)
+		c.JSON(http.StatusOK, database)
 	} else {
-		c.JSON(200, nil)
+		c.JSON(http.StatusOK, nil)
 	}
 }
 
@@ -41,7 +42,7 @@ func Create(c *gin.Context) {
 	}
 
 	if has {
-		c.JSON(200, models.Result{
+		c.JSON(http.StatusOK, models.Result{
 			Success: false,
 			Result:  "编码重复",
 		})
@@ -52,18 +53,18 @@ func Create(c *gin.Context) {
 		_, err = service.Engine.InsertOne(database)
 		if err != nil {
 			log.Error(err)
-			c.JSON(200, models.Result{
+			c.JSON(http.StatusOK, models.Result{
 				Success: false,
 				Result:  "插入失败",
 			})
 		} else {
-			c.JSON(200, models.Result{
+			c.JSON(http.StatusOK, models.Result{
 				Success: true,
 				Result:  "success",
 			})
 		}
 	} else {
-		c.JSON(200, models.Result{
+		c.JSON(http.StatusOK, models.Result{
 			Success: false,
 			Result:  "插入失败",
 		})
@@ -81,24 +82,24 @@ func Delete(c *gin.Context) {
 			_, err := service.Engine.ID(id).Delete(&config.Database{})
 			if err != nil {
 				log.Error(err)
-				c.JSON(200, models.Result{
+				c.JSON(http.StatusOK, models.Result{
 					Success: false,
 					Result:  "删除数据库失败",
 				})
 			} else {
-				c.JSON(200, models.Result{
+				c.JSON(http.StatusOK, models.Result{
 					Success: true,
 					Result:  "success",
 				})
 			}
 		} else {
-			c.JSON(200, models.Result{
+			c.JSON(http.StatusOK, models.Result{
 				Success: false,
 				Result:  "删除数据库失败",
 			})
 		}
 	} else {
-		c.JSON(200, models.Result{
+		c.JSON(http.StatusOK, models.Result{
 			Success: false,
 			Result:  "没有找到对应数据库",
 		})
@@ -111,12 +112,12 @@ func Update(c *gin.Context) {
 	_, err := service.Engine.ID(database.Id).Cols("name").Update(database)
 	if err != nil {
 		log.Error(err)
-		c.JSON(200, models.Result{
+		c.JSON(http.StatusOK, models.Result{
 			Success: false,
 			Result:  "更新数据库失败",
 		})
 	} else {
-		c.JSON(200, models.Result{
+		c.JSON(http.StatusOK, models.Result{
 			Success: true,
 			Result:  "success",
 		})

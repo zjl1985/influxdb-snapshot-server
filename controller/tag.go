@@ -8,6 +8,7 @@ import (
     client "github.com/influxdata/influxdb1-client/v2"
     log "github.com/sirupsen/logrus"
     "github.com/thoas/go-funk"
+    "net/http"
     "strconv"
 )
 
@@ -15,12 +16,12 @@ func SelectPage(c *gin.Context) {
     tags, total, err := TagPage(c)
     if err != nil {
         log.Error(err)
-        c.JSON(200, models.Page{
+        c.JSON(http.StatusOK, models.Page{
             Total: 0,
             List:  tags,
         })
     } else {
-        c.JSON(200, models.Page{
+        c.JSON(http.StatusOK, models.Page{
             Total: total,
             List:  tags,
         })
@@ -52,12 +53,12 @@ func SelectById(c *gin.Context) {
     has, err := service.Engine.Id(id).Get(tag)
     if err != nil {
         log.Error(err)
-        c.JSON(200, err)
+        c.JSON(http.StatusOK, err)
     } else {
         if has {
-            c.JSON(200, tag)
+            c.JSON(http.StatusOK, tag)
         } else {
-            c.JSON(200, nil)
+            c.JSON(http.StatusOK, nil)
         }
     }
 }
@@ -68,12 +69,12 @@ func Create(c *gin.Context) {
     _, err := service.Engine.InsertOne(tag)
     if err != nil {
         log.Error(err)
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: false,
             Result:  "插入失败",
         })
     } else {
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: true,
             Result:  "success",
         })
@@ -85,7 +86,7 @@ func CreateList(c *gin.Context) {
     err := c.Bind(&tags)
     if err != nil {
         log.Error(err)
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: false,
             Result:  "数据校验失败",
         })
@@ -93,7 +94,7 @@ func CreateList(c *gin.Context) {
     }
 
     if tags == nil || len(tags) == 0 {
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: false,
             Result:  "没有上传数据",
         })
@@ -104,7 +105,7 @@ func CreateList(c *gin.Context) {
         _, _ = service.Engine.Exec(sql, tag.Code, tag.Name, tag.Desc, tag.Database)
     }
 
-    c.JSON(200, models.Result{
+    c.JSON(http.StatusOK, models.Result{
         Success: true,
         Result:  "success",
     })
@@ -116,12 +117,12 @@ func Update(c *gin.Context) {
     _, err := service.Engine.Id(tag.Id).Cols("name", "desc").Update(tag)
     if err != nil {
         log.Error(err)
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: false,
             Result:  "更新失败",
         })
     } else {
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: true,
             Result:  "success",
         })
@@ -130,17 +131,19 @@ func Update(c *gin.Context) {
 
 func Delete(c *gin.Context) {
     id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
-    //tag := new(config.Tag)
-    //todo 加入删除数据库测点
+    tag := new(config.Tag)
+    session := service.Engine.Id(id)
+    _, _ = session.Get(tag)
+    service.DropSeries(tag.Database, []string{tag.Code})
     _, err := service.Engine.Id(id).Delete(&config.Tag{})
     if err != nil {
         log.Error(err)
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: false,
             Result:  "删除失败",
         })
     } else {
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: true,
             Result:  "success",
         })
@@ -148,25 +151,26 @@ func Delete(c *gin.Context) {
 }
 
 func DeleteList(c *gin.Context) {
+    database := c.Param("database")
     ids := make([]int, 0)
     _ = c.Bind(&ids)
     tags := make([]config.Tag, 0)
-    //tag := new(config.Tag)
     session := service.Engine.In("id", ids)
     err := session.Find(&tags)
-    //todo 加入删除数据库测点
+    codes := funk.Get(tags, "Code").([]string)
+    service.DropSeries(database, codes)
     if err != nil {
         log.Error(err)
     }
     _, err = service.Engine.Where(&config.Tag{}).In("id", ids).Delete(&config.Tag{})
     if err != nil {
         log.Error(err)
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: false,
             Result:  "删除失败",
         })
     } else {
-        c.JSON(200, models.Result{
+        c.JSON(http.StatusOK, models.Result{
             Success: true,
             Result:  "success",
         })
@@ -204,7 +208,7 @@ func Synchronize(c *gin.Context) {
     for _, tags := range insert.([][]config.Tag) {
         _, _ = service.Engine.Insert(&tags)
     }
-    c.JSON(200, models.Result{
+    c.JSON(http.StatusOK, models.Result{
         Success: true,
         Result:  "success",
     })
