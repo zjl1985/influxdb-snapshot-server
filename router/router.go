@@ -6,13 +6,17 @@ import (
     "fastdb-server/controller/influx"
     "fastdb-server/models"
     "github.com/gin-gonic/gin"
+    "github.com/sirupsen/logrus"
     "io"
     "os"
 )
 
 // InitRouter 注册服务
 func InitRouter(config *models.Config) *gin.Engine {
-    f, _ := os.Create("gin.log")
+    f, err := os.Create("./log/gin.log")
+    if err != nil {
+        logrus.Error(err)
+    }
     gin.DefaultWriter = io.MultiWriter(f)
     gin.SetMode(config.Mode)
     router := gin.Default()
