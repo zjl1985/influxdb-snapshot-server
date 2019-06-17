@@ -229,7 +229,7 @@ func DeleteData(context *gin.Context) {
     }
 
     context.JSON(http.StatusOK, gin.H{
-        "Success": true,
-        "Result":  "success",
+        "success": true,
+        "result":  "success",
     })
 }
