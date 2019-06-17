@@ -107,9 +107,22 @@ func CreateList(c *gin.Context) {
         })
         return
     }
-    sql := `replace into tag(code,name,desc,"table",database,create_time) values (?,?,?,'tag_value',?,datetime('now', 'localtime'))`
+
+    needInsert := make([]config.Tag, 0)
     for _, tag := range tags {
-        _, _ = service.Engine.Exec(sql, tag.Code, tag.Name, tag.Desc, tag.Database)
+        existTag := new(config.Tag)
+        exist, _ := service.Engine.Where("code=?", tag.Code).And("database=?",
+            tag.Database).And(`"table"=?`, "tag_value").Cols("id").Get(existTag)
+        if exist {
+            _, _ = service.Engine.ID(existTag.Id).Cols("name,desc").Update(tag)
+        } else {
+            needInsert = append(needInsert, tag)
+        }
+    }
+
+    insert := funk.Chunk(needInsert, 150)
+    for _, tags := range insert.([][]config.Tag) {
+        _, _ = service.Engine.Insert(&tags)
     }
 
     c.JSON(http.StatusOK, models.Result{
@@ -162,8 +175,7 @@ func DeleteList(c *gin.Context) {
     ids := make([]int, 0)
     _ = c.Bind(&ids)
     tags := make([]config.Tag, 0)
-    session := service.Engine.In("id", ids)
-    err := session.Find(&tags)
+    err := service.Engine.In("id", ids).Find(&tags)
     codes := funk.Get(tags, "Code").([]string)
     service.DropSeries(database, codes)
     if err != nil {
