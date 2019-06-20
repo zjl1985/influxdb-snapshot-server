@@ -38,8 +38,8 @@ func TagPage(c *gin.Context) ([]config.Tag, int64, error) {
     sqlSession := service.Engine.Where("database=?", database)
     if code != "" {
         sqlSession = service.Engine.Where("database=?",
-            database).And("code like '%'||?||'%'",
-            code).Or("name like '%'||?||'%'", code)
+            database).And("(code like '%'||?||'%' OR name like '%'||?||'%')",
+            code, code)
     }
     err := sqlSession.Limit(limit, offset).Find(&tags)
     if err != nil {
@@ -49,7 +49,8 @@ func TagPage(c *gin.Context) ([]config.Tag, int64, error) {
     sqlSession = service.Engine.Where("database=?", database)
     if code != "" {
         sqlSession = service.Engine.Where("database=?",
-            database).And("code like '%'||?||'%'", code).Or("name like '%'||?||'%'", code)
+            database).And("(code like '%'||?||'%' OR name like '%'||?||'%')",
+                code, code)
     }
     total, _ := sqlSession.Count(config.Tag{})
     return tags, total, nil
