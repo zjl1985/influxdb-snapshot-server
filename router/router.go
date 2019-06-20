@@ -25,8 +25,7 @@ func InitRouter(config *models.Config) *gin.Engine {
     router.POST("/snapshot", controller.Snapshot)
     router.POST("/snapshot/write", controller.InfluxSub)
 
-    api.GET("/tags/:database", controller.SelectPage)
-    api.GET("/tags/:database/:code", controller.SelectPage)
+    api.GET("/tags", controller.SelectPage)
     api.POST("/tags", controller.CreateList)
     api.GET("/tag/:id", controller.SelectById)
     api.PATCH("/tags-sync/:database", controller.Synchronize)
@@ -45,8 +44,7 @@ func InitRouter(config *models.Config) *gin.Engine {
     api.GET("/isonline", influx.ConnectionState)
     api.GET("/status", influx.StatusInfo)
 
-    api.GET("/live/:database", influx.GetLiveData)
-    api.GET("/live/:database/:code", influx.GetLiveData)
+    api.GET("/live", influx.GetLiveData)
     api.GET("/history/data/:database", influx.GeHistoryData)
     api.GET("/query/:database", influx.UserDefineQuery)
 

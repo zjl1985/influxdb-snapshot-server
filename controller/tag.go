@@ -29,8 +29,8 @@ func SelectPage(c *gin.Context) {
 }
 
 func TagPage(c *gin.Context) ([]config.Tag, int64, error) {
-    database := c.Param("database")
-    code := c.Param("code")
+    database := c.Query("database")
+    code := c.Query("code")
     limit, _ := strconv.Atoi(c.Query("ps"))
     pi, _ := strconv.Atoi(c.Query("pi"))
     offset := (pi - 1) * limit
@@ -38,7 +38,8 @@ func TagPage(c *gin.Context) ([]config.Tag, int64, error) {
     sqlSession := service.Engine.Where("database=?", database)
     if code != "" {
         sqlSession = service.Engine.Where("database=?",
-            database).And("code like '%'||?||'%'", code)
+            database).And("code like '%'||?||'%'",
+            code).Or("name like '%'||?||'%'", code)
     }
     err := sqlSession.Limit(limit, offset).Find(&tags)
     if err != nil {
@@ -48,7 +49,7 @@ func TagPage(c *gin.Context) ([]config.Tag, int64, error) {
     sqlSession = service.Engine.Where("database=?", database)
     if code != "" {
         sqlSession = service.Engine.Where("database=?",
-            database).And("code like '%'||?||'%'", code)
+            database).And("code like '%'||?||'%'", code).Or("name like '%'||?||'%'", code)
     }
     total, _ := sqlSession.Count(config.Tag{})
     return tags, total, nil
