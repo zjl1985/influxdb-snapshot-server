@@ -71,22 +71,20 @@ func buildTagValue(line string) *models.TagValue {
     }
     values := strings.Split(items[1], ",")
     var value float64
-    var quality int8 = 0
+    var quality int
     if strings.HasPrefix(values[0], "value=") {
         val := strings.Replace(values[0], "value=", "", 1)
         value, _ = strconv.ParseFloat(val, 64)
         if len(values) > 1 {
             q := strings.Replace(values[1], "quality=", "", 1)
-            qv, _ := strconv.ParseInt(q, 10, 8)
-            quality = int8(qv)
+            quality, _ = strconv.Atoi(q)
         }
     } else {
         val := strings.Replace(strings.Replace(values[1], "value=", "", 1), "i", "", 1)
         value, _ = strconv.ParseFloat(val, 64)
 
         q := strings.Replace(strings.Replace(values[0], "quality=", "", 1), "i", "", 1)
-        qv, _ := strconv.ParseInt(q, 10, 8)
-        quality = int8(qv)
+        quality, _ = strconv.Atoi(q)
 
     }
     return &models.TagValue{

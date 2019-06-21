@@ -3,7 +3,7 @@ package models
 import "fastdb-server/models/config"
 
 type TagValue struct {
-    Quality  int8    `json:"quality"`
+    Quality  int    `json:"quality"`
     DataTime int64   `json:"dataTime"`
     Value    float64 `json:"value"`
     TagCode  string  `json:"tagCode"`
