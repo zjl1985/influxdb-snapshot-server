@@ -50,7 +50,7 @@ func TagPage(c *gin.Context) ([]config.Tag, int64, error) {
     if code != "" {
         sqlSession = service.Engine.Where("database=?",
             database).And("(code like '%'||?||'%' OR name like '%'||?||'%')",
-                code, code)
+            code, code)
     }
     total, _ := sqlSession.Count(config.Tag{})
     return tags, total, nil
@@ -237,7 +237,7 @@ func Synchronize(c *gin.Context) {
 
 func getReadTag(database string) []string {
     influxSql :=
-        `show tag values on ` + database + ` with key="code"`;
+        `show tag values on ` + database + ` with key="code"`
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
     })

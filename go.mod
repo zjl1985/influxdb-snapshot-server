@@ -19,6 +19,7 @@ require (
 	github.com/go-xorm/core v0.6.0
 	github.com/go-xorm/xorm v0.7.1
 	github.com/influxdata/influxdb1-client v0.0.0-20190402204710-8ff2fc3824fc
+	github.com/json-iterator/go v1.1.6
 	github.com/mattn/go-colorable v0.1.2
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5 // indirect

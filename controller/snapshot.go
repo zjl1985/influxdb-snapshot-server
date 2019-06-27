@@ -2,18 +2,21 @@ package controller
 
 import (
     "fastdb-server/models"
+    "fastdb-server/service"
     "github.com/gin-gonic/gin"
+    "github.com/sirupsen/logrus"
     "strconv"
     "strings"
+    "sync"
     "time"
+    "unsafe"
 )
 
-var LiveDataMap map[string]*models.TagValue
+var LiveDataMap sync.Map
 var delayTime int64
 
 func InitSnapshot(delay int) {
     delayTime = int64(delay * 1e9)
-    LiveDataMap = make(map[string]*models.TagValue)
 }
 
 func Snapshot(c *gin.Context) {
@@ -21,8 +24,9 @@ func Snapshot(c *gin.Context) {
     _ = c.Bind(&codes)
     returnData := make([]models.TagValue, 0)
     for _, code := range codes {
-        if _, ok := LiveDataMap[code]; ok {
-            returnData = append(returnData, *LiveDataMap[code])
+        LiveDataMap.Load(code)
+        if value, ok := LiveDataMap.Load(code); ok {
+            returnData = append(returnData, value.(models.TagValue))
         }
     }
     c.JSON(200, returnData)
@@ -30,64 +34,48 @@ func Snapshot(c *gin.Context) {
 
 func InfluxSub(c *gin.Context) {
     body, _ := c.GetRawData()
-    processString(string(body))
+    go processString(string(body))
     body = nil
     c.String(200, "ok")
 }
 
 func processString(body string) {
-    lines := strings.Split(body, "\n")
+    lines := service.LinesToMapList(body)
     delaySub := (time.Now().UnixNano() + delayTime) / 1e6
+    logrus.Debug(lines)
     for _, line := range lines {
-        if !strings.HasPrefix(line, "tag_value,code=") {
-            continue
-        }
         tv := buildTagValue(line)
-        if tv == nil {
+        if unsafe.Sizeof(tv) == 0 {
             continue
         }
-        if _, ok := LiveDataMap[tv.TagCode]; ok {
-            if tv.DataTime > LiveDataMap[tv.TagCode].DataTime && tv.DataTime < delaySub {
-                LiveDataMap[tv.TagCode].Value = tv.Value
-                LiveDataMap[tv.TagCode].DataTime = tv.DataTime
+        if value, ok := LiveDataMap.Load(tv.TagCode); ok {
+            if tv.DataTime > value.(models.TagValue).DataTime && tv.
+                DataTime < delaySub {
                 //setRedis(tv)
+                LiveDataMap.Store(tv.TagCode, tv)
             }
         } else {
-            LiveDataMap[tv.TagCode] = tv
+            LiveDataMap.Store(tv.TagCode, tv)
             //setRedis(tv)
         }
-        tv = nil
+        tv = models.TagValue{}
     }
     lines = nil
 }
 
-func buildTagValue(line string) *models.TagValue {
-    line = strings.Replace(line, "tag_value,code=", "", -1)
-    items := strings.Split(line, " ")
-    code := items[0]
-    sec, _ := strconv.ParseInt(items[len(items)-1], 10, 64)
+func buildTagValue(line map[string]interface{}) models.TagValue {
+    sec := line["timestamp"].(int64)
     if sec < time.Now().UnixNano()-delayTime {
-        return nil
+        return models.TagValue{}
     }
-    values := strings.Split(items[1], ",")
-    var value float64
-    var quality int
-    if strings.HasPrefix(values[0], "value=") {
-        val := strings.Replace(values[0], "value=", "", 1)
-        value, _ = strconv.ParseFloat(val, 64)
-        if len(values) > 1 {
-            q := strings.Replace(values[1], "quality=", "", 1)
-            quality, _ = strconv.Atoi(q)
-        }
-    } else {
-        val := strings.Replace(strings.Replace(values[1], "value=", "", 1), "i", "", 1)
-        value, _ = strconv.ParseFloat(val, 64)
+    tags := line["tags"].(map[string]string)
+    fields := line["fields"].(map[string]string)
 
-        q := strings.Replace(strings.Replace(values[0], "quality=", "", 1), "i", "", 1)
-        quality, _ = strconv.Atoi(q)
+    value, _ := strconv.ParseFloat(fields["value"], 64)
+    quality, _ := strconv.Atoi(strings.Replace(fields["quality"], "i", "", 1))
+    code := tags["code"]
 
-    }
-    return &models.TagValue{
+    return models.TagValue{
         TagCode:  code,
         Value:    value,
         DataTime: sec / 1e6,

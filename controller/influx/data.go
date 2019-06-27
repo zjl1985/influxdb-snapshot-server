@@ -96,11 +96,11 @@ func GetLiveData(c *gin.Context) {
     }
 
     for i := range tags {
-        value, ok := controller.LiveDataMap[tags[i].Code]
+        value, ok := controller.LiveDataMap.Load(tags[i].Code)
         if ok {
-            tags[i].Time = value.DataTime
-            tags[i].Quality = value.Quality
-            tags[i].Value = value.Value
+            tags[i].Time = value.(models.TagValue).DataTime
+            tags[i].Quality = value.(models.TagValue).Quality
+            tags[i].Value = value.(models.TagValue).Value
         }
     }
 
@@ -108,6 +108,7 @@ func GetLiveData(c *gin.Context) {
         List:  tags,
         Total: total,
     })
+    tags = nil
 }
 
 type historyQuery struct {
@@ -162,6 +163,7 @@ func GeHistoryData(context *gin.Context) {
         Success: true,
         Result:  m,
     })
+    m = nil
 }
 
 func UserDefineQuery(context *gin.Context) {
