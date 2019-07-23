@@ -21,10 +21,14 @@ func InitRouter(config *models.Config) *gin.Engine {
     gin.SetMode(config.Mode)
     router := gin.Default()
     initialize(config)
-    api := router.Group("/api")
+
     router.POST("/snapshot", controller.Snapshot)
     router.POST("/snapshot/write", controller.InfluxSub)
-
+    api := router.Group("/api")
+    api.Use(database.BasicAuth(database.Accounts{
+        "admin": "admin",
+    }))
+    api.POST("/login", database.Login)
     api.GET("/tags", controller.SelectPage)
     api.POST("/tags", controller.CreateList)
     api.GET("/tag/:id", controller.SelectById)
@@ -49,7 +53,9 @@ func InitRouter(config *models.Config) *gin.Engine {
     api.GET("/query/:database", influx.UserDefineQuery)
 
     api.POST("/live/:database", influx.WriteLiveData)
+    api.POST("/history/:database", influx.WriteHistoryData)
     api.DELETE("/history/:database", influx.DeleteData)
+    api.POST("/upload", influx.ImportData)
 
     static := router.Group("/fast")
     static.Static("", config.WebPath)

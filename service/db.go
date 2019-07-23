@@ -18,6 +18,8 @@ func OpenDB() {
         logrus.Error(err)
     }
     Engine, _ = xorm.NewEngine("sqlite3", MyConfig.DBPath)
+    cacher := xorm.NewLRUCacher(xorm.NewMemoryStore(), 1000)
+    Engine.SetDefaultCacher(cacher)
     Engine.Logger().SetLevel(core.LOG_WARNING)
 
     if MyConfig.Mode == "debug" {

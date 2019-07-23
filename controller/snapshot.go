@@ -4,7 +4,6 @@ import (
     "fastdb-server/models"
     "fastdb-server/service"
     "github.com/gin-gonic/gin"
-    "github.com/sirupsen/logrus"
     "strconv"
     "strings"
     "sync"
@@ -32,6 +31,10 @@ func Snapshot(c *gin.Context) {
     c.JSON(200, returnData)
 }
 
+func whenNoCodeInLiveDataMap(code string){
+
+}
+
 func InfluxSub(c *gin.Context) {
     body, _ := c.GetRawData()
     go processString(string(body))
@@ -42,7 +45,6 @@ func InfluxSub(c *gin.Context) {
 func processString(body string) {
     lines := service.LinesToMapList(body)
     delaySub := (time.Now().UnixNano() + delayTime) / 1e6
-    logrus.Debug(lines)
     for _, line := range lines {
         tv := buildTagValue(line)
         if unsafe.Sizeof(tv) == 0 {

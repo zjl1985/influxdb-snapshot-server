@@ -6,10 +6,12 @@ import (
     "fastdb-server/models/config"
     "fastdb-server/service"
     "fmt"
+    "github.com/360EntSecGroup-Skylar/excelize/v2"
     "github.com/gin-gonic/gin"
     client "github.com/influxdata/influxdb1-client/v2"
     log "github.com/sirupsen/logrus"
     "net/http"
+    "sort"
     "strings"
     "time"
 )
@@ -24,8 +26,9 @@ func WriteLiveData(context *gin.Context) {
 
 func writeInfluxData(context *gin.Context, live bool) {
     database := context.Param("database")
-    tagValues := make([]config.Tag, 0)
+    tagValues := make(config.TagSlice, 0)
     _ = context.Bind(&tagValues)
+    sort.Stable(tagValues)
 
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
@@ -112,40 +115,69 @@ func GetLiveData(c *gin.Context) {
 }
 
 type historyQuery struct {
-    Type      string   `form:"type"`
-    BeginTime int64    `form:"beginTime"`
-    EndTime   int64    `form:"endTime"`
-    Interval  string   `form:"interval"`
-    Tags      []string `form:"tags"`
+    Type       string   `form:"type"`
+    BeginTime  int64    `form:"beginTime"`
+    EndTime    int64    `form:"endTime"`
+    Interval   string   `form:"interval"`
+    Tags       []string `form:"tags"`
+    Symbol     string   `form:"symbol"`
+    JudgeValue float64  `form:"judgeValue"`
+}
+
+func ImportData(context *gin.Context) {
+    fileHeader, _ := context.FormFile("file")
+    log.Info(fileHeader.Filename)
+    file, _ := fileHeader.Open()
+    defer file.Close()
+    f, err := excelize.OpenReader(file)
+    if err != nil {
+        context.JSON(http.StatusBadRequest, gin.H{
+            "status": "error",
+        })
+        log.Error(err)
+        return
+    }
+    log.Info(f.GetSheetName(0))
+    context.JSON(http.StatusOK, gin.H{
+        "status": "success",
+    })
 }
 
 func GeHistoryData(context *gin.Context) {
     database := context.Param("database")
     var query historyQuery
     _ = context.ShouldBindQuery(&query)
+    rangeStr := ""
+    if context.Query("judgeValue") != "" {
+        rangeStr = fmt.Sprintf("and value %s%f", query.Symbol, query.JudgeValue)
+    }
+    log.Debug(query)
     tagStr := "and code=~ /^" + strings.Join(query.Tags, "$|^") + "$/"
+    fullSql := `SELECT * FROM "tag_value" WHERE time>=%dms AND time<=%dms %s %s GROUP BY code`
+    groupSql := `SELECT %s(value) as "value" FROM "tag_value" WHERE time>=%dms
+AND time<=%dms %s %s GROUP BY time(%s),code fill(previous)`
     var sql string
     switch query.Type {
     case "full":
-        sql = fmt.Sprintf(`SELECT * FROM "tag_value" WHERE time>=%dms AND time
-<=%dms %s GROUP BY code`, query.BeginTime, query.EndTime, tagStr)
+        sql = fmt.Sprintf(fullSql, query.BeginTime, query.EndTime, tagStr, rangeStr)
         break
     case "groupby":
-        sql = fmt.Sprintf(`SELECT FIRST(value) as "value" FROM "tag_value" WHERE time>=%dms AND time
-<=%dms %s GROUP BY time(%s),code fill(previous)`, query.BeginTime, query.EndTime, tagStr,
+        sql = fmt.Sprintf(groupSql, "FIRST", query.BeginTime,
+            query.EndTime, tagStr, rangeStr,
             query.Interval)
         break
     case "max":
-        sql = fmt.Sprintf(`SELECT MAX(value) as "value" FROM "tag_value" WHERE time>=%dms AND time
-<=%dms %s GROUP BY time(%s),code fill(previous)`, query.BeginTime, query.EndTime, tagStr, query.Interval)
+        sql = fmt.Sprintf(groupSql, "MAX", query.BeginTime,
+            query.EndTime, tagStr, rangeStr, query.Interval)
         break
     case "min":
-        sql = fmt.Sprintf(`SELECT MIN(value) as "value" FROM "tag_value" WHERE time>=%dms AND time
-<=%dms %s GROUP BY time(%s),code fill(previous)`, query.BeginTime, query.EndTime, tagStr, query.Interval)
+        sql = fmt.Sprintf(groupSql, "MIN", query.BeginTime,
+            query.EndTime, tagStr, rangeStr, query.Interval)
         break
     default:
         break
     }
+    log.Debug(sql)
     q := client.NewQuery(sql, database, "ms")
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
@@ -158,11 +190,21 @@ func GeHistoryData(context *gin.Context) {
     var m []map[string]interface{}
     if err == nil && response.Error() == nil {
         m = GroupBy(response.Results[0])
+        context.JSON(http.StatusOK, models.Result{
+            Success: true,
+            Result:  m,
+        })
+    } else {
+        if response != nil{
+            log.Error(response.Error())
+            context.JSON(http.StatusOK, models.Result{
+                Success: false,
+                Result:  response.Results,
+            })
+            return
+        }
     }
-    context.JSON(http.StatusOK, models.Result{
-        Success: true,
-        Result:  m,
-    })
+
     m = nil
 }
 
