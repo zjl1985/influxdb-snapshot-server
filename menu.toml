@@ -1,0 +1,50 @@
+[[menu]]
+text = "数据库状态"
+i18n = "数据库状态"
+link = "/home/main"
+shortcut = false
+[menu.icon]
+type = "icon"
+value = "code-sandbox"
+theme = "outline"
+
+
+[[menu]]
+text = "测点管理"
+i18n = "测点管理"
+link = "/manage/tag"
+shortcut = false
+[menu.icon]
+type = "icon"
+value = "ordered-list"
+theme = "outline"
+
+[[menu]]
+text = "实时数据查询"
+i18n = "实时数据查询"
+link = "/query/real-time"
+shortcut = false
+[menu.icon]
+type = "icon"
+value = "line-chart"
+theme = "outline"
+
+[[menu]]
+text = "历史数据查询"
+i18n = "历史数据查询"
+link = "/query/history"
+shortcut = false
+[menu.icon]
+type = "icon"
+value = "bar-chart"
+theme = "outline"
+
+[[menu]]
+text = "自定义查询"
+i18n = "自定义查询"
+link = "/query/custom"
+shortcut = false
+[menu.icon]
+type = "icon"
+value = "key"
+theme = "outline"

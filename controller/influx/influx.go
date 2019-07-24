@@ -30,6 +30,8 @@ type infoStatus struct {
 func ConnectionState(context *gin.Context) {
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())
@@ -61,7 +63,9 @@ func StatusInfo(context *gin.Context) {
     }
     baseStr := `"database"='` + strings.Join(whereQuery, `' or "database"='`) + "'"
     c, err := client.NewHTTPClient(client.HTTPConfig{
-        Addr: service.MyConfig.FastDBAddress,
+        Addr:     service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())
@@ -160,7 +164,6 @@ func flat(result client.Result) map[string]interface{} {
 func GroupBy(result client.Result) []map[string]interface{} {
     rows := make([]map[string]interface{}, 0)
     for _, ser := range result.Series {
-
 
         for i := range ser.Values {
             m := make(map[string]interface{})

@@ -32,6 +32,8 @@ func writeInfluxData(context *gin.Context, live bool) {
 
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())
@@ -181,6 +183,8 @@ AND time<=%dms %s %s GROUP BY time(%s),code fill(previous)`
     q := client.NewQuery(sql, database, "ms")
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())
@@ -214,6 +218,8 @@ func UserDefineQuery(context *gin.Context) {
     log.Debug(query)
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())
@@ -235,6 +241,8 @@ func DeleteData(context *gin.Context) {
 
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())

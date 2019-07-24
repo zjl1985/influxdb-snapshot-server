@@ -19,13 +19,6 @@ func SelectAll(c *gin.Context) {
     c.JSON(http.StatusOK, &databases)
 }
 
-func Login(c *gin.Context) {
-
-    c.JSON(http.StatusOK, gin.H{
-        "success": true,
-    })
-}
-
 func Select(c *gin.Context) {
     id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
     database := new(config.Database)

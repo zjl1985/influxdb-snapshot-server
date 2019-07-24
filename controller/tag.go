@@ -240,6 +240,8 @@ func getReadTag(database string) []string {
         `show tag values on ` + database + ` with key="code"`
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())

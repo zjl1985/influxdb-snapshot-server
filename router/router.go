@@ -24,11 +24,17 @@ func InitRouter(config *models.Config) *gin.Engine {
 
     router.POST("/snapshot", controller.Snapshot)
     router.POST("/snapshot/write", controller.InfluxSub)
+    router.POST("/xinhai/logout", database.LogOut)
+
+    router.POST("/api/login", database.Login)
     api := router.Group("/api")
-    api.Use(database.BasicAuth(database.Accounts{
-        "admin": "admin",
-    }))
-    api.POST("/login", database.Login)
+    if config.EnableAuth {
+        api.Use(database.BasicAuth(database.Accounts{
+            config.FastUser: config.FastPwd,
+        }))
+    }
+    api.GET("/menu", database.GetMenu)
+    api.GET("/getsysinfo", database.GetSysInfo)
     api.GET("/tags", controller.SelectPage)
     api.POST("/tags", controller.CreateList)
     api.GET("/tag/:id", controller.SelectById)

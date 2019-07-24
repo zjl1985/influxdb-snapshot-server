@@ -8,6 +8,8 @@ import (
 func CreateDataBase(name string) bool {
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: MyConfig.FastDBAddress,
+        Username: MyConfig.FastUser,
+        Password: MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())
@@ -28,6 +30,8 @@ func CreateDataBase(name string) bool {
 func DropDataBase(name string) bool {
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: MyConfig.FastDBAddress,
+        Username: MyConfig.FastUser,
+        Password: MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())
@@ -49,6 +53,8 @@ func DropDataBase(name string) bool {
 func DropSeries(database string, codes []string) {
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: MyConfig.FastDBAddress,
+        Username: MyConfig.FastUser,
+        Password: MyConfig.FastPwd,
     })
     if err != nil {
         log.Error("Error creating InfluxDB Client: ", err.Error())
