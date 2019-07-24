@@ -29,7 +29,7 @@ type infoStatus struct {
 
 func ConnectionState(context *gin.Context) {
     c, err := client.NewHTTPClient(client.HTTPConfig{
-        Addr: service.MyConfig.FastDBAddress,
+        Addr:     service.MyConfig.FastDBAddress,
         Username: service.MyConfig.FastUser,
         Password: service.MyConfig.FastPwd,
     })
@@ -47,6 +47,56 @@ func ConnectionState(context *gin.Context) {
             Online: true,
         })
     }
+}
+
+func CreatAdmin() {
+    log.Info("使用超级管理员登陆")
+    c, err := client.NewHTTPClient(client.HTTPConfig{
+        Addr:     service.MyConfig.FastDBAddress,
+        Username: "super_admin",
+        Password: "gxems#21",
+    })
+    if err != nil {
+        log.Error("Error creating InfluxDB Client: ", err.Error())
+    }
+    defer c.Close()
+    q := client.NewQuery("create user super_admin with password 'gxems#21' with all privileges", "_internal", "")
+    response, err := c.Query(q)
+
+    q = client.NewQuery("SHOW USERS", "_internal", "")
+    response, err = c.Query(q)
+    if err == nil && response.Error() == nil {
+        databases := GroupBy(response.Results[0])
+        var user string
+        for _, v := range databases {
+            if strings.Compare(service.MyConfig.FastUser,
+                v["user"].(string)) == 0 {
+                user = service.MyConfig.FastUser
+                break
+            }
+        }
+        if user != "" {
+            log.Info("用户存在,修改密码")
+            q = client.NewQuery(fmt.Sprintf(
+                `SET PASSWORD FOR "%s" = '%s'`,
+                user, service.MyConfig.FastPwd), "_internal", "")
+            response, err = c.Query(q)
+            if err == nil && response.Error() == nil {
+                log.Info("修改密码成功")
+            }
+        } else {
+            log.Info("用户不存在,创建用户")
+            q = client.NewQuery(fmt.Sprintf(
+                "create user %s with password '%s' with all privileges",
+                service.MyConfig.FastUser,
+                service.MyConfig.FastPwd), "_internal", "")
+            response, err = c.Query(q)
+            if err == nil && response.Error() == nil {
+                log.Info("创建用户成功")
+            }
+        }
+    }
+
 }
 
 func StatusInfo(context *gin.Context) {
@@ -164,7 +214,6 @@ func flat(result client.Result) map[string]interface{} {
 func GroupBy(result client.Result) []map[string]interface{} {
     rows := make([]map[string]interface{}, 0)
     for _, ser := range result.Series {
-
         for i := range ser.Values {
             m := make(map[string]interface{})
             if ser.Tags != nil {

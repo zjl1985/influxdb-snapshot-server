@@ -1,6 +1,7 @@
 package main
 
 import (
+    "fastdb-server/controller/influx"
     "fastdb-server/router"
     "fastdb-server/service"
     "fmt"
@@ -8,31 +9,34 @@ import (
     "github.com/common-nighthawk/go-figure"
     "github.com/mattn/go-colorable"
     "github.com/rifflock/lfshook"
-    log "github.com/sirupsen/logrus"
+    "github.com/sirupsen/logrus"
+    "log"
 )
 
 func main() {
     pathMap := lfshook.PathMap{
-        log.DebugLevel: "./log/debug.log",
-        log.InfoLevel:  "./log/info.log",
-        log.WarnLevel:  "./log/warn.log",
-        log.ErrorLevel: "./log/warn.log",
+        logrus.DebugLevel: "./log/debug.log",
+        logrus.InfoLevel:  "./log/info.log",
+        logrus.WarnLevel:  "./log/warn.log",
+        logrus.ErrorLevel: "./log/warn.log",
     }
-    log.SetFormatter(&log.TextFormatter{ForceColors: true})
-    log.SetOutput(colorable.NewColorableStdout())
-    log.SetReportCaller(true)
-    log.AddHook(lfshook.NewHook(pathMap, &log.TextFormatter{}))
-    log.Info("服务启动")
+    logrus.SetFormatter(&logrus.TextFormatter{ForceColors: true})
+    logrus.SetOutput(colorable.NewColorableStdout())
+    logrus.SetReportCaller(true)
+    logrus.AddHook(lfshook.NewHook(pathMap, &logrus.TextFormatter{}))
+    logrus.Info("服务启动")
     if _, err := toml.DecodeFile("config.conf", &service.MyConfig); err != nil {
         log.Fatal(err)
     }
     service.MyConfig.FastDBAddress = fmt.Sprintf("http://%s:%s", service.MyConfig.FastDBIP, service.MyConfig.FastDBPort)
+    influx.CreatAdmin()
+
     //打开数据库连接
     service.OpenDB()
     if service.MyConfig.Mode == "debug" {
-        log.SetLevel(log.DebugLevel)
+        logrus.SetLevel(logrus.DebugLevel)
     } else {
-        log.SetLevel(log.InfoLevel)
+        logrus.SetLevel(logrus.InfoLevel)
     }
     //加载路由
     r := router.InitRouter(service.MyConfig)

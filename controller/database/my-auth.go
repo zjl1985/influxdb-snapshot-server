@@ -81,9 +81,7 @@ func authorizationHeader(user, password string) string {
 func Login(c *gin.Context) {
     token := c.Request.Header.Get("Authorization")
     myToken := authorizationHeader(service.MyConfig.FastUser, service.MyConfig.FastPwd)
-    result := strings.Compare(token, myToken)
-    logrus.Info(result)
-    if result == 0 {
+    if strings.Compare(token, myToken) == 0 {
         c.JSON(http.StatusOK, gin.H{
             "success": true,
         })

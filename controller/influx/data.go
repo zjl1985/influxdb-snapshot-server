@@ -208,7 +208,6 @@ AND time<=%dms %s %s GROUP BY time(%s),code fill(previous)`
             return
         }
     }
-
     m = nil
 }
 
@@ -238,7 +237,6 @@ func DeleteData(context *gin.Context) {
     database := context.Param("database")
     tagValues := make([]config.Tag, 0)
     _ = context.Bind(&tagValues)
-
     c, err := client.NewHTTPClient(client.HTTPConfig{
         Addr: service.MyConfig.FastDBAddress,
         Username: service.MyConfig.FastUser,
@@ -254,7 +252,6 @@ func DeleteData(context *gin.Context) {
     }
     defer c.Close()
     var q client.Query
-
     for _, tagValue := range tagValues {
         sql := fmt.Sprintf("DELETE FROM tag_value WHERE time=%dms and code='%s'",
             tagValue.Time, tagValue.Code)
@@ -279,7 +276,6 @@ func DeleteData(context *gin.Context) {
             return
         }
     }
-
     context.JSON(http.StatusOK, gin.H{
         "success": true,
         "result":  "success",
