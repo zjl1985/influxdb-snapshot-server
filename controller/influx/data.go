@@ -10,9 +10,11 @@ import (
     "github.com/gin-gonic/gin"
     client "github.com/influxdata/influxdb1-client/v2"
     log "github.com/sirupsen/logrus"
+    "github.com/thoas/go-funk"
     "net/http"
     "sort"
     "strings"
+    "sync"
     "time"
 )
 
@@ -103,12 +105,6 @@ func GetLiveData(c *gin.Context) {
     tagMap := make(map[string]models.TagValue)
     for i := range tags {
         codes[i] = tags[i].Code
-        //value, ok := LiveDataMap.Load(tags[i].Code)
-        //if ok {
-        //    tags[i].Time = value.(models.TagValue).DataTime
-        //    tags[i].Quality = value.(models.TagValue).Quality
-        //    tags[i].Value = value.(models.TagValue).Value
-        //}
     }
     tagValues := GetSnapshotData(codes)
 
@@ -221,8 +217,11 @@ func GeHistoryDataMoment(context *gin.Context) {
     m = nil
 }
 
-func GeHistoryData(context *gin.Context) {
+// 查询历史数据,同步方式
+func GeHistoryDataSync(context *gin.Context) {
     database := context.Param("database")
+    n := time.Now().UnixNano()
+
     var query historyQuery
     _ = context.ShouldBindQuery(&query)
     rangeStr := ""
@@ -261,6 +260,8 @@ func GeHistoryData(context *gin.Context) {
     defer c.Close()
     response, err := c.Query(q)
     var m []map[string]interface{}
+    log.Debug("cost:", (time.Now().UnixNano()-n)/1e6)
+
     if err == nil && response.Error() == nil {
         m = GroupBy(response.Results[0])
         context.JSON(http.StatusOK, models.Result{
@@ -278,6 +279,97 @@ func GeHistoryData(context *gin.Context) {
         }
     }
     m = nil
+}
+
+func getCodeQueryStr(codes []string) string {
+    return "AND (code='" + strings.Join(codes, "' OR code='") + "')"
+}
+
+func GeHistoryData(context *gin.Context) {
+    database := context.Param("database")
+    n := time.Now().UnixNano()
+    var query historyQuery
+    _ = context.ShouldBindQuery(&query)
+    rangeStr := ""
+    if context.Query("judgeValue") != "" {
+        rangeStr = fmt.Sprintf("and value %s%f", query.Symbol, query.JudgeValue)
+    }
+
+    queryTags := funk.Chunk(query.Tags, 5)
+    queryStrs := make([]string, len(queryTags.([][]string)))
+    fullSql := `SELECT * FROM "tag_value" WHERE time>=%dms AND time<=%dms %s %s GROUP BY code`
+    groupSql := `SELECT %s(value) as "value" FROM "tag_value" WHERE time>=%dms AND time<=%dms %s %s GROUP BY time(%s),code fill(previous)`
+
+    for i, tags := range queryTags.([][]string) {
+        tagStr := getCodeQueryStr(tags)
+        switch query.Type {
+        case "full":
+            queryStrs[i] = fmt.Sprintf(fullSql, query.BeginTime, query.EndTime, tagStr, rangeStr)
+            break
+        case "MEAN":
+            groupSql = `SELECT %s(value) as "value" FROM "tag_value" WHERE time >=%dms AND time<=%dms %s %s GROUP BY time(%s),code fill(linear)`
+            queryStrs[i] = fmt.Sprintf(groupSql, query.Type, query.BeginTime,
+                query.EndTime, tagStr, rangeStr, query.Interval)
+            break
+        default:
+            queryStrs[i] = fmt.Sprintf(groupSql, query.Type, query.BeginTime,
+                query.EndTime, tagStr, rangeStr, query.Interval)
+            break
+        }
+    }
+
+    c, err := client.NewHTTPClient(client.HTTPConfig{
+        Addr:     service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
+    })
+    if err != nil {
+        log.Error("Error creating InfluxDB Client: ", err.Error())
+    }
+    defer c.Close()
+    result := queryData(queryStrs, database, c)
+    historyData := convertToTagValueHistory(result)
+    sort.Stable(models.TagValueHistorySlice(historyData))
+    log.Debug("cost:", (time.Now().UnixNano()-n)/1e6)
+    context.JSON(http.StatusOK, models.Result{
+        Success: true,
+        Result:  historyData,
+    })
+    result = nil
+    historyData = nil
+    return
+}
+
+func queryData(sqlQueryList []string, database string, c client.
+Client) []map[string]interface{} {
+    var wg sync.WaitGroup
+    result := make([]map[string]interface{}, 0)
+    queue := make(chan []map[string]interface{}, 1)
+    wg.Add(len(sqlQueryList))
+    for i := 0; i < len(sqlQueryList); i++ {
+        go func(sql string, database string, c client.
+        Client) {
+            q := client.NewQuery(sql, database, "ms")
+            response, err := c.Query(q)
+            var m []map[string]interface{}
+            if err == nil && response.Error() == nil {
+                m = GroupBy(response.Results[0])
+                queue <- m
+            } else {
+                if response != nil {
+                    log.Error(response.Error())
+                }
+            }
+        }(sqlQueryList[i], database, c)
+    }
+    go func() {
+        for rs := range queue {
+            result = append(result, rs...)
+            wg.Done()
+        }
+    }()
+    wg.Wait()
+    return result
 }
 
 func UserDefineQuery(context *gin.Context) {

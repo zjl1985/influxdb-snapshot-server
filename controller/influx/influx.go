@@ -250,3 +250,23 @@ func convertToTagValue(inputs []map[string]interface{}) []models.TagValue {
     }
     return result
 }
+
+func mapToTagValueHistory(input map[string]interface{}) models.TagValueHistory {
+    value, _ := input["value"].(json.Number).Float64()
+    time, _ := input["time"].(json.Number).Int64()
+    quality, _ := input["quality"].(json.Number).Int64()
+    return models.TagValueHistory{
+        Code:    input["code"].(string),
+        Value:   value,
+        Time:    time,
+        Quality: int(quality),
+    }
+}
+
+func convertToTagValueHistory(inputs []map[string]interface{}) []models.TagValueHistory {
+    result := make(models.TagValueHistorySlice, len(inputs))
+    for i, input := range inputs {
+        result[i] = mapToTagValueHistory(input)
+    }
+    return result
+}
