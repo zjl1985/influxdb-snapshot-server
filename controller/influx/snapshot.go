@@ -39,18 +39,29 @@ func GetSnapshotData(codes []string) []models.TagValue {
         logrus.Error("Error creating InfluxDB Client: ", err.Error())
     }
     defer influxdClient.Close()
+    var wg sync.WaitGroup
+    queue := make(chan []models.TagValue, 1)
     for _, code := range codes {
-        //LiveDataMap.Load(code)
         if value, ok := LiveDataMap.Load(code); ok {
             returnData = append(returnData, value.(models.TagValue))
         } else {
-            whenNoCodeInLiveDataMap(code, influxdClient)
+            wg.Add(1)
+            go whenNoCodeInLiveDataMap(code, influxdClient, queue)
         }
     }
+
+    go func() {
+        for t := range queue {
+            returnData = append(returnData, t...)
+            wg.Done()
+        }
+    }()
+    wg.Wait()
     return returnData
 }
 
-func whenNoCodeInLiveDataMap(code string, cl client.Client) {
+func whenNoCodeInLiveDataMap(code string, cl client.Client,
+    ch chan []models.TagValue) {
     lastSql := `SELECT LAST(value) AS "value", quality FROM "tag_value" WHERE time>now()-2h and time<=now( )+5m AND code='%s' GROUP BY code`
     sql := fmt.Sprintf(lastSql, code)
     q := client.NewQuery(sql, "telegraf", "ms")
@@ -64,7 +75,11 @@ func whenNoCodeInLiveDataMap(code string, cl client.Client) {
             return
         }
     }
-    logrus.Info(convertToTagValue(m))
+    values := convertToTagValue(m)
+    for _, v := range values {
+        LiveDataMap.Store(v.TagCode, v)
+    }
+    ch <- values
 }
 
 func InfluxSub(c *gin.Context) {

@@ -124,7 +124,6 @@ func GetLiveData(c *gin.Context) {
             tags[i].Value = value.Value
         }
     }
-    log.Info("done")
     c.JSON(http.StatusOK, models.Page{
         List:  tags,
         Total: total,

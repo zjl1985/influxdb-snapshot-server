@@ -233,7 +233,7 @@ func GroupBy(result client.Result) []map[string]interface{} {
 
 func mapToTagValue(input map[string]interface{}) models.TagValue {
     value, _ := input["value"].(json.Number).Float64()
-    time, _ := input["value"].(json.Number).Int64()
+    time, _ := input["time"].(json.Number).Int64()
     quality, _ := input["quality"].(json.Number).Int64()
     return models.TagValue{
         TagCode:  input["code"].(string),
