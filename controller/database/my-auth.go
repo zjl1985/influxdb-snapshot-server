@@ -79,6 +79,12 @@ func authorizationHeader(user, password string) string {
 }
 
 func Login(c *gin.Context) {
+    if !service.MyConfig.EnableAuth {
+        c.JSON(http.StatusOK, gin.H{
+            "success": true,
+        })
+        return
+    }
     token := c.Request.Header.Get("Authorization")
     myToken := authorizationHeader(service.MyConfig.FastUser, service.MyConfig.FastPwd)
     if strings.Compare(token, myToken) == 0 {
@@ -93,32 +99,42 @@ func Login(c *gin.Context) {
 }
 
 func GetMenu(c *gin.Context) {
-    _, exists := c.Get(AuthUserKey)
-    if !exists {
-        c.AbortWithStatusJSON(http.StatusOK, gin.H{})
+    if service.MyConfig.EnableAuth {
+        _, exists := c.Get(AuthUserKey)
+        if !exists {
+            c.AbortWithStatusJSON(http.StatusOK, gin.H{})
+            return
+        }
     }
+
     var menus models.MenuInfo
     if _, err := toml.DecodeFile("menu.toml", &menus); err != nil {
         logrus.Error(err)
         c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
             "message": err,
         })
+        return
     }
 
     c.JSON(http.StatusOK, menus)
 }
 
 func GetSysInfo(c *gin.Context) {
-    _, exists := c.Get(AuthUserKey)
-    if !exists {
-        c.AbortWithStatusJSON(http.StatusOK, gin.H{})
+    if service.MyConfig.EnableAuth {
+        _, exists := c.Get(AuthUserKey)
+        if !exists {
+            c.AbortWithStatusJSON(http.StatusOK, gin.H{})
+            return
+        }
     }
+
     var info models.Info
     if _, err := toml.DecodeFile("info.toml", &info); err != nil {
         logrus.Error(err)
         c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
             "message": err,
         })
+        return
     }
     c.JSON(http.StatusOK, info)
 }

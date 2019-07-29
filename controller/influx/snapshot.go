@@ -1,9 +1,12 @@
-package controller
+package influx
 
 import (
     "fastdb-server/models"
     "fastdb-server/service"
+    "fmt"
     "github.com/gin-gonic/gin"
+    client "github.com/influxdata/influxdb1-client/v2"
+    "github.com/sirupsen/logrus"
     "strconv"
     "strings"
     "sync"
@@ -21,18 +24,47 @@ func InitSnapshot(delay int) {
 func Snapshot(c *gin.Context) {
     codes := make([]string, 0)
     _ = c.Bind(&codes)
-    returnData := make([]models.TagValue, 0)
-    for _, code := range codes {
-        LiveDataMap.Load(code)
-        if value, ok := LiveDataMap.Load(code); ok {
-            returnData = append(returnData, value.(models.TagValue))
-        }
-    }
+    returnData := GetSnapshotData(codes)
     c.JSON(200, returnData)
 }
 
-func whenNoCodeInLiveDataMap(code string){
+func GetSnapshotData(codes []string) []models.TagValue {
+    returnData := make([]models.TagValue, len(codes))
+    influxdClient, err := client.NewHTTPClient(client.HTTPConfig{
+        Addr:     service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
+    })
+    if err != nil {
+        logrus.Error("Error creating InfluxDB Client: ", err.Error())
+    }
+    defer influxdClient.Close()
+    for _, code := range codes {
+        //LiveDataMap.Load(code)
+        if value, ok := LiveDataMap.Load(code); ok {
+            returnData = append(returnData, value.(models.TagValue))
+        } else {
+            whenNoCodeInLiveDataMap(code, influxdClient)
+        }
+    }
+    return returnData
+}
 
+func whenNoCodeInLiveDataMap(code string, cl client.Client) {
+    lastSql := `SELECT LAST(value) AS "value", quality FROM "tag_value" WHERE time>now()-2h and time<=now( )+5m AND code='%s' GROUP BY code`
+    sql := fmt.Sprintf(lastSql, code)
+    q := client.NewQuery(sql, "telegraf", "ms")
+    response, err := cl.Query(q)
+    var m []map[string]interface{}
+    if err == nil && response.Error() == nil {
+        m = GroupBy(response.Results[0])
+    } else {
+        if response != nil {
+            logrus.Error(response.Error())
+            return
+        }
+    }
+    logrus.Info(convertToTagValue(m))
 }
 
 func InfluxSub(c *gin.Context) {

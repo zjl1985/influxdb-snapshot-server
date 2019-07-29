@@ -2,6 +2,7 @@ package influx
 
 import (
     "encoding/json"
+    "fastdb-server/models"
     "fastdb-server/models/config"
     "fastdb-server/service"
     "fmt"
@@ -57,7 +58,7 @@ func CreatAdmin() {
         Password: "gxems#21",
     })
     if err != nil {
-        log.Error("Error creating InfluxDB Client: ", err.Error())
+        log.Fatal("连接数据库引擎失败", err.Error())
     }
     defer c.Close()
     q := client.NewQuery("create user super_admin with password 'gxems#21' with all privileges", "_internal", "")
@@ -228,4 +229,24 @@ func GroupBy(result client.Result) []map[string]interface{} {
         }
     }
     return rows
+}
+
+func mapToTagValue(input map[string]interface{}) models.TagValue {
+    value, _ := input["value"].(json.Number).Float64()
+    time, _ := input["value"].(json.Number).Int64()
+    quality, _ := input["quality"].(json.Number).Int64()
+    return models.TagValue{
+        TagCode:  input["code"].(string),
+        Value:    value,
+        DataTime: time,
+        Quality:  int(quality),
+    }
+}
+
+func convertToTagValue(inputs []map[string]interface{}) []models.TagValue {
+    result := make([]models.TagValue, len(inputs))
+    for i, input := range inputs {
+        result[i] = mapToTagValue(input)
+    }
+    return result
 }

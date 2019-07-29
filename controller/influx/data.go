@@ -31,7 +31,7 @@ func writeInfluxData(context *gin.Context, live bool) {
     sort.Stable(tagValues)
 
     c, err := client.NewHTTPClient(client.HTTPConfig{
-        Addr: service.MyConfig.FastDBAddress,
+        Addr:     service.MyConfig.FastDBAddress,
         Username: service.MyConfig.FastUser,
         Password: service.MyConfig.FastPwd,
     })
@@ -55,7 +55,7 @@ func writeInfluxData(context *gin.Context, live bool) {
         if live {
             insertTime = now
         } else {
-            insertTime = time.Unix(vtq.Time/1e3, 0)
+            insertTime = time.Unix(0, vtq.Time*1e6)
         }
         pt, err := client.NewPoint(
             "tag_value",
@@ -99,31 +99,51 @@ func GetLiveData(c *gin.Context) {
         })
         return
     }
-
+    codes := make([]string, len(tags))
+    tagMap := make(map[string]models.TagValue)
     for i := range tags {
-        value, ok := controller.LiveDataMap.Load(tags[i].Code)
-        if ok {
-            tags[i].Time = value.(models.TagValue).DataTime
-            tags[i].Quality = value.(models.TagValue).Quality
-            tags[i].Value = value.(models.TagValue).Value
-        }
+        codes[i] = tags[i].Code
+        //value, ok := LiveDataMap.Load(tags[i].Code)
+        //if ok {
+        //    tags[i].Time = value.(models.TagValue).DataTime
+        //    tags[i].Quality = value.(models.TagValue).Quality
+        //    tags[i].Value = value.(models.TagValue).Value
+        //}
+    }
+    tagValues := GetSnapshotData(codes)
+
+    for _, v := range tagValues {
+        tagMap[v.TagCode] = v
     }
 
+    for i := range tags {
+        value, ok := tagMap[tags[i].Code]
+        if ok {
+            tags[i].Time = value.DataTime
+            tags[i].Quality = value.Quality
+            tags[i].Value = value.Value
+        }
+    }
+    log.Info("done")
     c.JSON(http.StatusOK, models.Page{
         List:  tags,
         Total: total,
     })
     tags = nil
+    tagMap = nil
+    tagValues = nil
+    return
 }
 
 type historyQuery struct {
-    Type       string   `form:"type"`
+    OnMoment   bool     `form:"onMoment"`
     BeginTime  int64    `form:"beginTime"`
     EndTime    int64    `form:"endTime"`
-    Interval   string   `form:"interval"`
-    Tags       []string `form:"tags"`
-    Symbol     string   `form:"symbol"`
     JudgeValue float64  `form:"judgeValue"`
+    Type       string   `form:"type"`
+    Interval   string   `form:"interval"`
+    Symbol     string   `form:"symbol"`
+    Tags       []string `form:"tags"`
 }
 
 func ImportData(context *gin.Context) {
@@ -145,7 +165,7 @@ func ImportData(context *gin.Context) {
     })
 }
 
-func GeHistoryData(context *gin.Context) {
+func GeHistoryDataMoment(context *gin.Context) {
     database := context.Param("database")
     var query historyQuery
     _ = context.ShouldBindQuery(&query)
@@ -153,36 +173,27 @@ func GeHistoryData(context *gin.Context) {
     if context.Query("judgeValue") != "" {
         rangeStr = fmt.Sprintf("and value %s%f", query.Symbol, query.JudgeValue)
     }
-    log.Debug(query)
     tagStr := "and code=~ /^" + strings.Join(query.Tags, "$|^") + "$/"
-    fullSql := `SELECT * FROM "tag_value" WHERE time>=%dms AND time<=%dms %s %s GROUP BY code`
-    groupSql := `SELECT %s(value) as "value" FROM "tag_value" WHERE time>=%dms
-AND time<=%dms %s %s GROUP BY time(%s),code fill(previous)`
+    lastSql := `SELECT LAST(value) AS "value", quality FROM "tag_value" WHERE time>%dms-2h and time<=%dms %s %s GROUP BY code`
+    firstSql := `SELECT FIRST(value) AS "value", quality FROM "tag_value" WHERE time>=%dms and time<=%dms+2h %s %s GROUP BY code`
+    fullSql := `SELECT value, quality FROM "tag_value" WHERE time=%dms %s %s GROUP BY code`
     var sql string
     switch query.Type {
-    case "full":
-        sql = fmt.Sprintf(fullSql, query.BeginTime, query.EndTime, tagStr, rangeStr)
+    case "LAST":
+        sql = fmt.Sprintf(lastSql, query.BeginTime, query.BeginTime, tagStr, rangeStr)
         break
-    case "groupby":
-        sql = fmt.Sprintf(groupSql, "FIRST", query.BeginTime,
-            query.EndTime, tagStr, rangeStr,
-            query.Interval)
-        break
-    case "max":
-        sql = fmt.Sprintf(groupSql, "MAX", query.BeginTime,
-            query.EndTime, tagStr, rangeStr, query.Interval)
-        break
-    case "min":
-        sql = fmt.Sprintf(groupSql, "MIN", query.BeginTime,
-            query.EndTime, tagStr, rangeStr, query.Interval)
+    case "FIRST":
+        sql = fmt.Sprintf(firstSql, query.BeginTime, query.BeginTime, tagStr, rangeStr)
         break
     default:
+        sql = fmt.Sprintf(fullSql, query.BeginTime, tagStr, rangeStr)
         break
+
     }
-    log.Debug(sql)
+    //log.Info(sql)
     q := client.NewQuery(sql, database, "ms")
     c, err := client.NewHTTPClient(client.HTTPConfig{
-        Addr: service.MyConfig.FastDBAddress,
+        Addr:     service.MyConfig.FastDBAddress,
         Username: service.MyConfig.FastUser,
         Password: service.MyConfig.FastPwd,
     })
@@ -199,7 +210,66 @@ AND time<=%dms %s %s GROUP BY time(%s),code fill(previous)`
             Result:  m,
         })
     } else {
-        if response != nil{
+        if response != nil {
+            log.Error(response.Error())
+            context.JSON(http.StatusOK, models.Result{
+                Success: false,
+                Result:  response.Results,
+            })
+            return
+        }
+    }
+    m = nil
+}
+
+func GeHistoryData(context *gin.Context) {
+    database := context.Param("database")
+    var query historyQuery
+    _ = context.ShouldBindQuery(&query)
+    rangeStr := ""
+    if context.Query("judgeValue") != "" {
+        rangeStr = fmt.Sprintf("and value %s%f", query.Symbol, query.JudgeValue)
+    }
+    //log.Debug(query)
+    tagStr := "and code=~ /^" + strings.Join(query.Tags, "$|^") + "$/"
+    fullSql := `SELECT * FROM "tag_value" WHERE time>=%dms AND time<=%dms %s %s GROUP BY code`
+    groupSql := `SELECT %s(value) as "value" FROM "tag_value" WHERE time>=%dms AND time<=%dms %s %s GROUP BY time(%s),code fill(previous)`
+    var sql string
+    switch query.Type {
+    case "full":
+        sql = fmt.Sprintf(fullSql, query.BeginTime, query.EndTime, tagStr, rangeStr)
+        break
+    case "MEAN":
+        groupSql = `SELECT %s(value) as "value" FROM "tag_value" WHERE time >=%dms AND time<=%dms %s %s GROUP BY time(%s),code fill(linear)`
+        sql = fmt.Sprintf(groupSql, query.Type, query.BeginTime,
+            query.EndTime, tagStr, rangeStr, query.Interval)
+        break
+    default:
+        sql = fmt.Sprintf(groupSql, query.Type, query.BeginTime,
+            query.EndTime, tagStr, rangeStr, query.Interval)
+        break
+    }
+    //log.Info(sql)
+    q := client.NewQuery(sql, database, "ms")
+    c, err := client.NewHTTPClient(client.HTTPConfig{
+        Addr:     service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
+    })
+    if err != nil {
+        log.Error("Error creating InfluxDB Client: ", err.Error())
+    }
+    defer c.Close()
+    response, err := c.Query(q)
+    var m []map[string]interface{}
+    if err == nil && response.Error() == nil {
+        m = GroupBy(response.Results[0])
+        context.JSON(http.StatusOK, models.Result{
+            Success: true,
+            Result:  m,
+        })
+    } else {
+        if response != nil {
             log.Error(response.Error())
             context.JSON(http.StatusOK, models.Result{
                 Success: false,
@@ -216,7 +286,7 @@ func UserDefineQuery(context *gin.Context) {
     query := context.Query("queryString")
     log.Debug(query)
     c, err := client.NewHTTPClient(client.HTTPConfig{
-        Addr: service.MyConfig.FastDBAddress,
+        Addr:     service.MyConfig.FastDBAddress,
         Username: service.MyConfig.FastUser,
         Password: service.MyConfig.FastPwd,
     })
@@ -238,7 +308,7 @@ func DeleteData(context *gin.Context) {
     tagValues := make([]config.Tag, 0)
     _ = context.Bind(&tagValues)
     c, err := client.NewHTTPClient(client.HTTPConfig{
-        Addr: service.MyConfig.FastDBAddress,
+        Addr:     service.MyConfig.FastDBAddress,
         Username: service.MyConfig.FastUser,
         Password: service.MyConfig.FastPwd,
     })

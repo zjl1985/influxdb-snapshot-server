@@ -22,8 +22,8 @@ func InitRouter(config *models.Config) *gin.Engine {
     router := gin.Default()
     initialize(config)
 
-    router.POST("/snapshot", controller.Snapshot)
-    router.POST("/snapshot/write", controller.InfluxSub)
+    router.POST("/snapshot", influx.Snapshot)
+    router.POST("/snapshot/write", influx.InfluxSub)
     router.POST("/xinhai/logout", database.LogOut)
 
     router.POST("/api/login", database.Login)
@@ -56,6 +56,7 @@ func InitRouter(config *models.Config) *gin.Engine {
 
     api.GET("/live", influx.GetLiveData)
     api.GET("/history/data/:database", influx.GeHistoryData)
+    api.GET("/history/moment/:database", influx.GeHistoryDataMoment)
     api.GET("/query/:database", influx.UserDefineQuery)
 
     api.POST("/live/:database", influx.WriteLiveData)
@@ -69,5 +70,5 @@ func InitRouter(config *models.Config) *gin.Engine {
 }
 
 func initialize(config *models.Config) {
-    controller.InitSnapshot(config.Delay)
+    influx.InitSnapshot(config.Delay)
 }
