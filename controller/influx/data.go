@@ -47,12 +47,9 @@ func writeInfluxData(context *gin.Context, live bool) {
     }
     defer c.Close()
 
-    bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
-        Database:  database,
-        Precision: "ms",
-    })
     now := time.Now()
-    for _, vtq := range tagValues {
+    points := make([]*client.Point, len(tagValues))
+    for i, vtq := range tagValues {
         var insertTime time.Time
         if live {
             insertTime = now
@@ -74,21 +71,30 @@ func writeInfluxData(context *gin.Context, live bool) {
             println("Error:", err.Error())
             continue
         }
-        bp.AddPoint(pt)
+        points[i] = pt
     }
-    err = c.Write(bp)
-    if err != nil {
-        log.Error(err)
-        context.JSON(http.StatusOK, models.Result{
-            Success: false,
-            Result:  "插入历史数据失败",
+    pointsInPoints := funk.Chunk(points, 5000).([][]*client.Point)
+    for i := range pointsInPoints {
+        bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
+            Database:  database,
+            Precision: "ms",
         })
-    } else {
-        context.JSON(http.StatusOK, models.Result{
-            Success: true,
-            Result:  "success",
-        })
+        bp.AddPoints(pointsInPoints[i])
+        err = c.Write(bp)
+        if err != nil {
+            log.Error(err)
+            context.JSON(http.StatusOK, models.Result{
+                Success: false,
+                Result:  "插入历史数据失败",
+            })
+            return
+        }
     }
+    context.JSON(http.StatusOK, models.Result{
+        Success: true,
+        Result:  "success",
+    })
+    return
 }
 
 func GetLiveData(c *gin.Context) {
