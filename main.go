@@ -63,7 +63,7 @@ func start() {
     logrus.SetReportCaller(true)
     logrus.AddHook(lfshook.NewHook(pathMap, &logrus.TextFormatter{}))
     logrus.Info("服务启动")
-    if _, err := toml.DecodeFile("config.conf", &service.MyConfig); err != nil {
+    if _, err := toml.DecodeFile("fastdb-snapshot.conf", &service.MyConfig); err != nil {
         log.Fatal(err)
     }
     service.MyConfig.FastDBAddress = fmt.Sprintf("http://%s:%s", service.MyConfig.FastDBIP, service.MyConfig.FastDBPort)
