@@ -166,7 +166,7 @@ func ImportData(context *gin.Context) {
     })
 }
 
-func GeHistoryDataMoment(context *gin.Context) {
+func GeHistoryDataMomentSync(context *gin.Context) {
     database := context.Param("database")
     var query historyQuery
     _ = context.ShouldBindQuery(&query)
@@ -221,6 +221,59 @@ func GeHistoryDataMoment(context *gin.Context) {
         }
     }
     m = nil
+}
+
+func GeHistoryDataMoment(context *gin.Context) {
+    database := context.Param("database")
+    var query historyQuery
+    _ = context.ShouldBindQuery(&query)
+    rangeStr := ""
+    if context.Query("judgeValue") != "" {
+        rangeStr = fmt.Sprintf("and value %s%f", query.Symbol, query.JudgeValue)
+    }
+    queryTags := funk.Chunk(query.Tags, 5)
+    queryStrs := make([]string, len(queryTags.([][]string)))
+
+    lastSql := `SELECT LAST(value) AS "value", quality FROM "tag_value" WHERE time>%dms-2h and time<=%dms %s %s GROUP BY code`
+    firstSql := `SELECT FIRST(value) AS "value", quality FROM "tag_value" WHERE time>=%dms and time<=%dms+2h %s %s GROUP BY code`
+    fullSql := `SELECT value, quality FROM "tag_value" WHERE time=%dms %s %s GROUP BY code`
+
+    for i, tags := range queryTags.([][]string) {
+        tagStr := getCodeQueryStr(tags)
+        switch query.Type {
+        case "LAST":
+            queryStrs[i] = fmt.Sprintf(lastSql, query.BeginTime,
+                query.BeginTime, tagStr, rangeStr)
+            break
+        case "FIRST":
+            queryStrs[i] = fmt.Sprintf(firstSql, query.BeginTime, query.BeginTime, tagStr, rangeStr)
+            break
+        default:
+            queryStrs[i] = fmt.Sprintf(fullSql, query.BeginTime, tagStr, rangeStr)
+            break
+
+        }
+    }
+
+    c, err := client.NewHTTPClient(client.HTTPConfig{
+        Addr:     service.MyConfig.FastDBAddress,
+        Username: service.MyConfig.FastUser,
+        Password: service.MyConfig.FastPwd,
+    })
+    if err != nil {
+        log.Error("Error creating InfluxDB Client: ", err.Error())
+    }
+    defer c.Close()
+    result := queryData(queryStrs, database, c)
+    historyData := convertToTagValueHistory(result)
+    sort.Stable(models.TagValueHistorySlice(historyData))
+    context.JSON(http.StatusOK, models.Result{
+        Success: true,
+        Result:  historyData,
+    })
+    result = nil
+    historyData = nil
+    return
 }
 
 // 查询历史数据,同步方式
