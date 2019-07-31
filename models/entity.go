@@ -15,10 +15,10 @@ type Page struct {
 }
 
 type TagValueHistory struct {
-    Quality int     `json:"quality"`
-    Time    int64   `json:"time"`
-    Value   float64 `json:"value"`
-    Code    string  `json:"code"`
+    Quality interface{} `json:"quality"`
+    Time    interface{} `json:"time"`
+    Value   interface{} `json:"value"`
+    Code    string      `json:"code"`
 }
 
 type TagValueHistorySlice []TagValueHistory

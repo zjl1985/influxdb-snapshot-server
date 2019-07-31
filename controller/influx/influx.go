@@ -252,14 +252,26 @@ func convertToTagValue(inputs []map[string]interface{}) []models.TagValue {
 }
 
 func mapToTagValueHistory(input map[string]interface{}) models.TagValueHistory {
-    value, _ := input["value"].(json.Number).Float64()
+    var value, quality interface{}
+    if input["value"] == nil && input["quality"] == nil {
+        value = nil
+    } else {
+        value, _ = input["value"].(json.Number).Float64()
+    }
+
+    if input["quality"] == nil {
+        quality = nil
+    } else {
+        quality, _ = input["value"].(json.Number).Int64()
+        quality = int(quality.(int64))
+    }
+
     time, _ := input["time"].(json.Number).Int64()
-    quality, _ := input["quality"].(json.Number).Int64()
     return models.TagValueHistory{
         Code:    input["code"].(string),
         Value:   value,
         Time:    time,
-        Quality: int(quality),
+        Quality: quality,
     }
 }
 
