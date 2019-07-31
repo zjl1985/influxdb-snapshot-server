@@ -262,7 +262,7 @@ func mapToTagValueHistory(input map[string]interface{}) models.TagValueHistory {
     if input["quality"] == nil {
         quality = nil
     } else {
-        quality, _ = input["value"].(json.Number).Int64()
+        quality, _ = input["quality"].(json.Number).Int64()
         quality = int(quality.(int64))
     }
 
