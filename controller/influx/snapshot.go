@@ -29,7 +29,7 @@ func Snapshot(c *gin.Context) {
 }
 
 func GetSnapshotData(codes []string) []models.TagValue {
-    returnData := make([]models.TagValue, len(codes))
+    returnData := make([]models.TagValue, 0)
     influxdClient, err := client.NewHTTPClient(client.HTTPConfig{
         Addr:     service.MyConfig.FastDBAddress,
         Username: service.MyConfig.FastUser,
