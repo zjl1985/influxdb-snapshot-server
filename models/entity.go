@@ -3,10 +3,10 @@ package models
 import "fastdb-server/models/config"
 
 type TagValue struct {
-    Quality  int     `json:"quality"`
-    DataTime int64   `json:"dataTime"`
+    Quality  int     `json:"quality" `
+    DataTime int64   `json:"dataTime" mapstructure:"time"`
     Value    float64 `json:"value"`
-    TagCode  string  `json:"tagCode"`
+    TagCode  string  `json:"tagCode" mapstructure:"code"`
 }
 
 type Page struct {
