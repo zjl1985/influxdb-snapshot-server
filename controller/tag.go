@@ -102,7 +102,7 @@ func CreateList(c *gin.Context) {
         return
     }
 
-    if tags == nil || len(tags) == 0 {
+    if len(tags) == 0 {
         c.JSON(http.StatusOK, models.Result{
             Success: false,
             Result:  "没有上传数据",
@@ -239,7 +239,7 @@ func getReadTag(database string) []string {
     influxSql :=
         `show tag values on ` + database + ` with key="code"`
     c, err := client.NewHTTPClient(client.HTTPConfig{
-        Addr: service.MyConfig.FastDBAddress,
+        Addr:     service.MyConfig.FastDBAddress,
         Username: service.MyConfig.FastUser,
         Password: service.MyConfig.FastPwd,
     })

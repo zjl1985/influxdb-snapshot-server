@@ -8,6 +8,7 @@ import (
     "fmt"
     "github.com/gin-gonic/gin"
     client "github.com/influxdata/influxdb1-client/v2"
+    "github.com/mitchellh/mapstructure"
     log "github.com/sirupsen/logrus"
     "net/http"
     "strings"
@@ -62,10 +63,10 @@ func CreatAdmin() {
     }
     defer c.Close()
     q := client.NewQuery("create user super_admin with password 'gxems#21' with all privileges", "_internal", "")
-    response, err := c.Query(q)
+    _, _ = c.Query(q)
 
     q = client.NewQuery("SHOW USERS", "_internal", "")
-    response, err = c.Query(q)
+    response, err := c.Query(q)
     if err == nil && response.Error() == nil {
         databases := GroupBy(response.Results[0])
         var user string
@@ -231,54 +232,20 @@ func GroupBy(result client.Result) []map[string]interface{} {
     return rows
 }
 
-func mapToTagValue(input map[string]interface{}) models.TagValue {
-    value, _ := input["value"].(json.Number).Float64()
-    time, _ := input["time"].(json.Number).Int64()
-    quality, _ := input["quality"].(json.Number).Int64()
-    return models.TagValue{
-        TagCode:  input["code"].(string),
-        Value:    value,
-        DataTime: time,
-        Quality:  int(quality),
-    }
-}
-
 func convertToTagValue(inputs []map[string]interface{}) []models.TagValue {
-    result := make([]models.TagValue, len(inputs))
-    for i, input := range inputs {
-        result[i] = mapToTagValue(input)
+    result := make([]models.TagValue, 0)
+    err := mapstructure.Decode(inputs, &result)
+    if err != nil {
+        log.Error(err)
     }
     return result
 }
 
-func mapToTagValueHistory(input map[string]interface{}) models.TagValueHistory {
-    var value, quality interface{}
-    if input["value"] == nil && input["quality"] == nil {
-        value = nil
-    } else {
-        value, _ = input["value"].(json.Number).Float64()
-    }
-
-    if input["quality"] == nil {
-        quality = nil
-    } else {
-        quality, _ = input["quality"].(json.Number).Int64()
-        quality = int(quality.(int64))
-    }
-
-    time, _ := input["time"].(json.Number).Int64()
-    return models.TagValueHistory{
-        Code:    input["code"].(string),
-        Value:   value,
-        Time:    time,
-        Quality: quality,
-    }
-}
-
 func convertToTagValueHistory(inputs []map[string]interface{}) []models.TagValueHistory {
-    result := make(models.TagValueHistorySlice, len(inputs))
-    for i, input := range inputs {
-        result[i] = mapToTagValueHistory(input)
+    result := make(models.TagValueHistorySlice, 0)
+    err := mapstructure.Decode(inputs, &result)
+    if err != nil {
+        log.Error(err)
     }
     return result
 }

@@ -94,7 +94,6 @@ func writeInfluxData(context *gin.Context, live bool) {
         Success: true,
         Result:  "success",
     })
-    return
 }
 
 func GetLiveData(c *gin.Context) {
@@ -130,10 +129,6 @@ func GetLiveData(c *gin.Context) {
         List:  tags,
         Total: total,
     })
-    tags = nil
-    tagMap = nil
-    tagValues = nil
-    return
 }
 
 type historyQuery struct {
@@ -182,13 +177,10 @@ func GeHistoryDataMomentSync(context *gin.Context) {
     switch query.Type {
     case "LAST":
         sql = fmt.Sprintf(lastSql, query.BeginTime, query.BeginTime, tagStr, rangeStr)
-        break
     case "FIRST":
         sql = fmt.Sprintf(firstSql, query.BeginTime, query.BeginTime, tagStr, rangeStr)
-        break
     default:
         sql = fmt.Sprintf(fullSql, query.BeginTime, tagStr, rangeStr)
-        break
 
     }
     //log.Info(sql)
@@ -220,7 +212,6 @@ func GeHistoryDataMomentSync(context *gin.Context) {
             return
         }
     }
-    m = nil
 }
 
 func GeHistoryDataMoment(context *gin.Context) {
@@ -244,13 +235,10 @@ func GeHistoryDataMoment(context *gin.Context) {
         case "LAST":
             queryStrs[i] = fmt.Sprintf(lastSql, query.BeginTime,
                 query.BeginTime, tagStr, rangeStr)
-            break
         case "FIRST":
             queryStrs[i] = fmt.Sprintf(firstSql, query.BeginTime, query.BeginTime, tagStr, rangeStr)
-            break
         default:
             queryStrs[i] = fmt.Sprintf(fullSql, query.BeginTime, tagStr, rangeStr)
-            break
 
         }
     }
@@ -271,9 +259,6 @@ func GeHistoryDataMoment(context *gin.Context) {
         Success: true,
         Result:  historyData,
     })
-    result = nil
-    historyData = nil
-    return
 }
 
 // 查询历史数据,同步方式
@@ -295,16 +280,13 @@ func GeHistoryDataSync(context *gin.Context) {
     switch query.Type {
     case "full":
         sql = fmt.Sprintf(fullSql, query.BeginTime, query.EndTime, tagStr, rangeStr)
-        break
     case "MEAN":
         groupSql = `SELECT %s(value) as "value" FROM "tag_value" WHERE time >=%dms AND time<=%dms %s %s GROUP BY time(%s),code fill(linear)`
         sql = fmt.Sprintf(groupSql, query.Type, query.BeginTime,
             query.EndTime, tagStr, rangeStr, query.Interval)
-        break
     default:
         sql = fmt.Sprintf(groupSql, query.Type, query.BeginTime,
             query.EndTime, tagStr, rangeStr, query.Interval)
-        break
     }
     //log.Info(sql)
     q := client.NewQuery(sql, database, "ms")
@@ -334,10 +316,8 @@ func GeHistoryDataSync(context *gin.Context) {
                 Success: false,
                 Result:  response.Results,
             })
-            return
         }
     }
-    m = nil
 }
 
 func getCodeQueryStr(codes []string) string {
@@ -364,16 +344,13 @@ func GeHistoryData(context *gin.Context) {
         switch query.Type {
         case "full":
             queryStrs[i] = fmt.Sprintf(fullSql, query.BeginTime, query.EndTime, tagStr, rangeStr)
-            break
         case "MEAN":
             groupSql = `SELECT %s(value) as "value" FROM "tag_value" WHERE time >=%dms AND time<=%dms %s %s GROUP BY time(%s),code fill(linear)`
             queryStrs[i] = fmt.Sprintf(groupSql, query.Type, query.BeginTime,
                 query.EndTime, tagStr, rangeStr, query.Interval)
-            break
         default:
             queryStrs[i] = fmt.Sprintf(groupSql, query.Type, query.BeginTime,
                 query.EndTime, tagStr, rangeStr, query.Interval)
-            break
         }
     }
 
@@ -394,9 +371,6 @@ func GeHistoryData(context *gin.Context) {
         Success: true,
         Result:  historyData,
     })
-    result = nil
-    historyData = nil
-    return
 }
 
 func queryData(sqlQueryList []string, database string, c client.

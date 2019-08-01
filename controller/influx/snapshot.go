@@ -85,7 +85,6 @@ func whenNoCodeInLiveDataMap(code string, cl client.Client,
 func InfluxSub(c *gin.Context) {
     body, _ := c.GetRawData()
     go processString(string(body))
-    body = nil
     c.String(200, "ok")
 }
 
@@ -109,7 +108,6 @@ func processString(body string) {
         }
         tv = models.TagValue{}
     }
-    lines = nil
 }
 
 func buildTagValue(line map[string]interface{}) models.TagValue {

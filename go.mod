@@ -24,6 +24,7 @@ require (
 	github.com/json-iterator/go v1.1.6
 	github.com/mattn/go-colorable v0.1.2
 	github.com/mattn/go-sqlite3 v1.10.0
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/thoas/go-funk v0.4.0
