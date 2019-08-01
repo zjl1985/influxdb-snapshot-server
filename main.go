@@ -11,45 +11,10 @@ import (
     "github.com/rifflock/lfshook"
     "github.com/sirupsen/logrus"
     "log"
-    "strconv"
-    "sync"
-    "time"
 )
 
 func main() {
-
     start()
-    //test()
-}
-
-func test() {
-    //var list chan []string
-    //list = make(chan []string, 10)
-    var wg sync.WaitGroup
-    result := make([]string, 0)
-    queue := make(chan string, 1)
-    for i := 0; i < 100; i++ {
-        wg.Add(1)
-        go write(strconv.Itoa(i), queue)
-        //restul := <-list
-        //logrus.Info(restul)
-    }
-    go func() {
-        // defer wg.Done() <- Never gets called since the 100 `Done()` calls are made above, resulting in the `Wait()` to continue on before this is executed
-        for t := range queue {
-            result = append(result, t)
-            wg.Done() // ** move the `Done()` call here
-        }
-    }()
-
-    wg.Wait()
-    logrus.Info(len(result))
-
-}
-
-func write(index string, output chan string) {
-    time.Sleep(time.Second)
-    output <- index
 }
 
 func start() {

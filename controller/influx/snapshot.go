@@ -57,6 +57,7 @@ func GetSnapshotData(codes []string) []models.TagValue {
         }
     }()
     wg.Wait()
+    close(queue)
     return returnData
 }
 

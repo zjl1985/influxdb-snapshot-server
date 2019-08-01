@@ -402,6 +402,7 @@ Client) []map[string]interface{} {
         }
     }()
     wg.Wait()
+    close(queue)
     return result
 }
 
