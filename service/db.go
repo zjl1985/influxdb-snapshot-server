@@ -20,13 +20,12 @@ func OpenDB() {
     Engine, _ = xorm.NewEngine("sqlite3", MyConfig.DBPath)
     cacher := xorm.NewLRUCacher(xorm.NewMemoryStore(), 1000)
     Engine.SetDefaultCacher(cacher)
-    Engine.Logger().SetLevel(core.LOG_WARNING)
-
-    if MyConfig.Mode == "debug" {
-        Engine.ShowSQL(true)
-        Engine.Logger().SetLevel(core.LOG_DEBUG)
-    }
     Engine.SetLogger(xorm.NewSimpleLogger(f))
+    Engine.Logger().SetLevel(core.LOG_WARNING)
+    if MyConfig.Mode == "debug" {
+       Engine.ShowSQL(true)
+       Engine.Logger().SetLevel(core.LOG_DEBUG)
+    }
     err = Engine.Ping()
     if err != nil {
         logrus.Fatal(err)
